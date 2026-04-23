@@ -1,0 +1,11 @@
+{
+  "name": "agrismart-prototype",
+  "version": "1.0.0",
+  "description": "AgriSmart prototype with a simple Node.js backend.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
