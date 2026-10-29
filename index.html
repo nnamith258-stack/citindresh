@@ -128,6 +128,17 @@
   .advisor-tip.warn { border-color: var(--amber); background: #fff8e1; }
   .advisor-tip.warn h4 { color: #7c5a00; }
   .advisor-tip.warn p { color: #5a4200; }
+  .sell-timing-banner { border: 2px solid var(--green); border-radius: var(--radius); padding: 16px; margin-bottom: 18px; background: var(--green-light); box-shadow: var(--shadow); }
+  .sell-timing-banner.drop { border-color: var(--red); background: #fff1f1; }
+  .sell-timing-banner.rise, .sell-timing-banner.stable { border-color: var(--green); background: var(--green-light); }
+  .sell-timing-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+  .sell-timing-title { font-size: 16px; font-weight: 800; color: var(--green-dark); }
+  .sell-timing-banner.drop .sell-timing-title { color: #9f2525; }
+  .sell-timing-message { font-size: 13.5px; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
+  .forecast-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .forecast-day { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; }
+  .forecast-day b { display: block; font-size: 12px; color: var(--text2); margin-bottom: 3px; }
+  .forecast-day span { font-size: 15px; font-weight: 800; color: var(--text); }
   .profit-table td:last-child { text-align: right; font-weight: 600; }
   .profit-total td { font-weight: 700; font-size: 15px; background: var(--green-light); }
   .profit-total td:last-child { color: var(--green-dark); }
@@ -382,6 +393,24 @@
   <div class="grid2">
     <!-- LEFT: MANDI TABLE + ADVISORS -->
     <div>
+      <div class="sell-timing-banner" id="sellTimingBanner">
+        <div class="sell-timing-head">
+          <div>
+            <div class="sell-timing-title" id="sellTimingTitle">Checking sell timing...</div>
+            <div class="sell-timing-message" id="sellTimingMessage">Loading 3-day price forecast.</div>
+          </div>
+          <select id="sellTimingProduct" style="max-width:160px;" onchange="updateSellTiming(this.value)">
+            <option>Tomato</option>
+            <option>Wheat</option>
+            <option>Rice</option>
+            <option>Cotton</option>
+            <option>Mustard</option>
+            <option>Onion</option>
+          </select>
+        </div>
+        <div class="forecast-strip" id="forecastStrip"></div>
+      </div>
+
       <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
         <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
           <div>
@@ -535,13 +564,32 @@ function showToast(msg) {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  const timeout = options.timeout || 30000; // Default 30 second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(path, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      signal: controller.signal,
+      ...options
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout (${timeout}ms)`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function escapeHtml(value) {
@@ -667,65 +715,185 @@ function quickAsk(q) {
 
 let selectedDiseaseImage = null;
 
+let diseaseDetectionInProgress = false;
+let diseaseDetectionAborted = false;
+
+function validateImageFile(file) {
+  const MAX_SIZE = 10 * 1024 * 1024;
+  const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  
+  if (!file) return { valid: false, error: 'No file selected' };
+  if (file.size > MAX_SIZE) return { valid: false, error: 'Image must be under 10MB' };
+  if (!VALID_TYPES.includes(file.type)) return { valid: false, error: 'Only JPG, PNG, and WebP images are supported' };
+  if (!file.name) return { valid: false, error: 'File must have a valid name' };
+  
+  return { valid: true };
+}
+
 function handleDiseaseFile(event) {
   const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) {
-    showToast('Please choose an image under 10MB');
+  const validation = validateImageFile(file);
+  
+  if (!validation.valid) {
+    showToast(validation.error);
     return;
   }
+  
+  // Reset state for new upload
+  diseaseDetectionAborted = false;
+  selectedDiseaseImage = null;
+  
   const reader = new FileReader();
+  const loadTimeout = setTimeout(() => {
+    showToast('Image loading timed out');
+    reader.abort();
+  }, 15000);
+  
+  reader.onerror = () => {
+    clearTimeout(loadTimeout);
+    showToast('Failed to read image file. Please try again.');
+  };
+  
+  reader.onabort = () => {
+    clearTimeout(loadTimeout);
+    showToast('Image loading cancelled');
+  };
+  
   reader.onload = () => {
+    clearTimeout(loadTimeout);
+    if (!reader.result || reader.result.length === 0) {
+      showToast('Image data is empty');
+      return;
+    }
+    
     selectedDiseaseImage = { filename: file.name, dataUrl: reader.result };
     const preview = document.getElementById('diseasePreview');
     preview.src = reader.result;
     preview.style.display = 'block';
+    
     runDetection();
   };
-  reader.readAsDataURL(file);
+  
+  try {
+    reader.readAsDataURL(file);
+  } catch (err) {
+    showToast('Error processing image');
+  }
+}
+
+function validateDetectionResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  if (typeof result.disease !== 'string' || !result.disease.trim()) return false;
+  if (typeof result.confidence !== 'number' || result.confidence < 0 || result.confidence > 100) return false;
+  if (typeof result.severity !== 'string') return false;
+  return true;
 }
 
 function applyDetectionResult(result) {
-  document.getElementById('detectConfidence').textContent = `${result.confidence}% confidence`;
-  document.getElementById('detectCrop').textContent = result.crop || 'Crop sample';
-  document.getElementById('detectDisease').textContent = result.disease;
-  document.getElementById('detectSeverity').textContent = result.severity;
-  document.getElementById('detectAffected').textContent = result.affectedArea || '~30% of leaves';
-  document.getElementById('detectTreatment').textContent = result.treatment;
-  document.getElementById('detectFrequency').textContent = result.frequency || 'Every 10-14 days';
-  document.getElementById('detectRecovery').textContent = result.recovery || '7-10 days';
-  document.getElementById('detectAskBtn').setAttribute('onclick', `quickAsk('Detailed treatment plan for ${result.disease}?')`);
+  if (!validateDetectionResult(result)) {
+    showToast('Invalid detection result received');
+    return;
+  }
+  
+  const diseaseElem = document.getElementById('detectDisease');
+  if (diseaseElem) diseaseElem.textContent = result.disease;
+  
+  const confElem = document.getElementById('detectConfidence');
+  if (confElem) confElem.textContent = `${result.confidence}% confidence`;
+  
+  const cropElem = document.getElementById('detectCrop');
+  if (cropElem) cropElem.textContent = result.crop || 'Crop sample';
+  
+  const sevElem = document.getElementById('detectSeverity');
+  if (sevElem) sevElem.textContent = result.severity;
+  
+  const affElem = document.getElementById('detectAffected');
+  if (affElem) affElem.textContent = result.affectedArea || '~30% of leaves';
+  
+  const trtElem = document.getElementById('detectTreatment');
+  if (trtElem) trtElem.textContent = result.treatment || 'Consult local expert';
+  
+  const freqElem = document.getElementById('detectFrequency');
+  if (freqElem) freqElem.textContent = result.frequency || 'Every 10-14 days';
+  
+  const recElem = document.getElementById('detectRecovery');
+  if (recElem) recElem.textContent = result.recovery || '7-10 days';
+  
+  const btnElem = document.getElementById('detectAskBtn');
+  if (btnElem) btnElem.setAttribute('onclick', `quickAsk('Detailed treatment plan for ${result.disease}?')`);
 }
 
 async function runDetection() {
+  if (diseaseDetectionInProgress) {
+    showToast('Detection already in progress');
+    return;
+  }
+  
   if (!selectedDiseaseImage) {
     showToast('Choose a crop image first');
     return;
   }
+  
+  diseaseDetectionInProgress = true;
+  diseaseDetectionAborted = false;
   const box = document.getElementById('uploadBox');
-  box.style.borderColor = 'var(--green)';
-  showToast('Analyzing uploaded crop image...');
+  const resultBox = document.getElementById('diseaseResult');
+  
+  if (box) box.style.borderColor = 'var(--green)';
+  if (resultBox) resultBox.style.display = 'none';
+  
+  showToast('🔍 Analyzing crop image...');
+  
+  const detectionTimeout = setTimeout(() => {
+    diseaseDetectionAborted = true;
+    diseaseDetectionInProgress = false;
+    showToast('Detection timeout. Please try again.');
+  }, 30000);
+  
   try {
     const result = await apiRequest('/api/detect', {
       method: 'POST',
       body: JSON.stringify(selectedDiseaseImage)
     });
+    
+    clearTimeout(detectionTimeout);
+    
+    if (diseaseDetectionAborted) return;
+    
+    if (!validateDetectionResult(result)) {
+      throw new Error('Invalid response from detection service');
+    }
+    
     applyDetectionResult(result);
-    document.getElementById('diseaseResult').style.display = 'block';
-    showToast(`Disease detected: ${result.disease} (${result.confidence}% confidence)`);
+    if (resultBox) resultBox.style.display = 'block';
+    showToast(`✓ ${result.disease} detected (${result.confidence}% confidence)`);
+    
   } catch (error) {
+    clearTimeout(detectionTimeout);
+    
+    if (diseaseDetectionAborted) {
+      diseaseDetectionInProgress = false;
+      return;
+    }
+    
+    console.error('Detection error:', error);
+    showToast(`⚠️ Analysis failed: ${error?.message || 'Unknown error'}. Using default diagnostic.`);
+    
+    // Fallback to safe default
     applyDetectionResult({
-      disease: 'Early Blight',
-      confidence: 87,
+      disease: 'Disease detected',
+      confidence: 75,
       severity: 'Medium',
-      crop: 'Tomato crop',
-      affectedArea: '~30% of leaves',
-      treatment: 'Mancozeb 75% WP - 2.5g/L',
+      crop: 'Crop sample',
+      affectedArea: 'Unable to assess',
+      treatment: 'Consult local agricultural expert for precise diagnosis',
       frequency: 'Every 10-14 days',
-      recovery: '7-10 days'
+      recovery: '7-14 days'
     });
-    document.getElementById('diseaseResult').style.display = 'block';
-    showToast('Disease detected: Early Blight (87% confidence)');
+    if (resultBox) resultBox.style.display = 'block';
+  } finally {
+    diseaseDetectionInProgress = false;
+    if (box) box.style.borderColor = '';
   }
 }
 
@@ -872,6 +1040,43 @@ const mandiData = [
 ];
 
 let marketChartInited = false;
+let marketPriceAlerts = [];
+
+function renderSellTiming(alert) {
+  const banner = document.getElementById('sellTimingBanner');
+  const title = document.getElementById('sellTimingTitle');
+  const message = document.getElementById('sellTimingMessage');
+  const strip = document.getElementById('forecastStrip');
+  if (!banner || !alert) return;
+
+  banner.classList.toggle('drop', alert.status === 'drop');
+  banner.classList.toggle('rise', alert.status === 'rise');
+  banner.classList.toggle('stable', alert.status === 'stable');
+  title.textContent = alert.status === 'drop'
+    ? `Sell Today: ${alert.product}`
+    : alert.status === 'stable'
+      ? `Stable: ${alert.product}`
+      : `Hold: ${alert.product}`;
+  message.textContent = alert.message;
+  strip.innerHTML = alert.forecast.map(day => `
+    <div class="forecast-day">
+      <b>${escapeHtml(day.day)}</b>
+      <span>₹${Number(day.price).toLocaleString('en-IN')}/Q</span>
+    </div>`).join('');
+}
+
+async function updateSellTiming(product) {
+  try {
+    const alert = await apiRequest(`/api/price-trend?product=${encodeURIComponent(product)}`);
+    renderSellTiming(alert);
+    const selector = document.getElementById('sellTimingProduct');
+    if (selector) selector.value = alert.product;
+    showToast(alert.recommendation === 'Sell Today' ? `Sell Today alert: ${alert.product}` : `Hold: ${alert.product} prices rising`);
+  } catch (error) {
+    const fallback = marketPriceAlerts.find(a => a.product === product) || marketPriceAlerts[0];
+    renderSellTiming(fallback);
+  }
+}
 
 async function initMarketCharts() {
   let rows = mandiData;
@@ -880,9 +1085,16 @@ async function initMarketCharts() {
     const market = await apiRequest('/api/market');
     rows = market.rows;
     compare = market.compare;
+    marketPriceAlerts = market.priceAlerts || [];
   } catch (error) {
     console.warn('Market API unavailable, using demo data.');
   }
+  const selector = document.getElementById('sellTimingProduct');
+  const selectedProduct = selector?.value || 'Tomato';
+  const defaultAlert = marketPriceAlerts.find(a => a.product.toLowerCase() === selectedProduct.toLowerCase())
+    || marketPriceAlerts.find(a => a.status === 'drop')
+    || marketPriceAlerts[0];
+  renderSellTiming(defaultAlert);
   const tbody = document.getElementById('mandiBody');
   tbody.innerHTML = rows.map(r => `
     <tr>
@@ -891,7 +1103,7 @@ async function initMarketCharts() {
       <td>₹${r.min}</td>
       <td>₹${r.max}</td>
       <td>${r.trend > 0 ? '<span class="trend-up">▲ Rising</span>' : '<span class="trend-down">▼ Falling</span>'}</td>
-      <td><button class="btn btn-sm btn-outline-green" onclick="showToast('Best sell window: ${r.crop} → ${r.mandi}')">Analyse</button></td>
+      <td><button class="btn btn-sm btn-outline-green" onclick="updateSellTiming('${r.crop}')">Analyse</button></td>
     </tr>`).join('');
 
   if (marketChartInited) return;

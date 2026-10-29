@@ -38,6 +38,45 @@ const mandiData = [
   { crop: 'Onion', mandi: 'Mysore APMC', min: 1200, max: 1500, trend: 1 }
 ];
 
+const priceForecasts = {
+  Wheat: [
+    { day: 'Today', price: 2240 },
+    { day: 'Tomorrow', price: 2265 },
+    { day: 'Day 2', price: 2290 },
+    { day: 'Day 3', price: 2310 }
+  ],
+  Tomato: [
+    { day: 'Today', price: 1950 },
+    { day: 'Tomorrow', price: 1840 },
+    { day: 'Day 2', price: 1760 },
+    { day: 'Day 3', price: 1680 }
+  ],
+  Rice: [
+    { day: 'Today', price: 2100 },
+    { day: 'Tomorrow', price: 2125 },
+    { day: 'Day 2', price: 2150 },
+    { day: 'Day 3', price: 2140 }
+  ],
+  Cotton: [
+    { day: 'Today', price: 6600 },
+    { day: 'Tomorrow', price: 6660 },
+    { day: 'Day 2', price: 6725 },
+    { day: 'Day 3', price: 6810 }
+  ],
+  Mustard: [
+    { day: 'Today', price: 5400 },
+    { day: 'Tomorrow', price: 5320 },
+    { day: 'Day 2', price: 5260 },
+    { day: 'Day 3', price: 5290 }
+  ],
+  Onion: [
+    { day: 'Today', price: 1500 },
+    { day: 'Tomorrow', price: 1535 },
+    { day: 'Day 2', price: 1580 },
+    { day: 'Day 3', price: 1620 }
+  ]
+};
+
 const aiReplies = {
   'wheat rust': `<b>Wheat Rust Treatment Plan</b><br><br>🔬 <b>Disease:</b> Puccinia striiformis or P. triticina<br><br>💊 <b>Treatment:</b><br>&bull; Propiconazole 25% EC - 0.1% (1ml/L water)<br>&bull; Tebuconazole 25.9% EC - 0.1%<br>&bull; Spray at first sign of orange/yellow pustules<br><br>📅 <b>Schedule:</b> Repeat every 12-14 days for 2 cycles<br>🌿 <b>Prevention:</b> Use rust-resistant varieties like HD-2967 or PBW-550.`,
   tomato: `<b>Tomato Fertilizer Schedule</b><br><br>🌱 <b>At transplant:</b> NPK 19:19:19 - 5g/plant<br>🌿 <b>Vegetative:</b> Urea 2g/L + micronutrient spray<br>🍅 <b>Fruiting:</b> NPK 0:0:50 - 5g/plant for fruit quality<br><br><b>Organic option:</b> 2kg compost + 200g neem cake per plant.`,
@@ -153,11 +192,29 @@ function insertOrder(order) {
 }
 
 function insertDetection(result) {
-  ensureDb();
-  db.prepare(`
-    INSERT INTO detections (id, filename, disease, confidence, severity, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(result.id, result.filename, result.disease, result.confidence, result.severity, result.createdAt);
+  try {
+    ensureDb();
+    
+    // Validate required fields
+    if (!result.id || !result.disease) {
+      throw new Error('Missing required detection fields');
+    }
+    
+    db.prepare(`
+      INSERT INTO detections (id, filename, disease, confidence, severity, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      String(result.id || '').substring(0, 100),
+      String(result.filename || '').substring(0, 255),
+      String(result.disease).substring(0, 255),
+      Math.max(0, Math.min(100, parseInt(result.confidence) || 0)),
+      String(result.severity || 'Unknown').substring(0, 100),
+      result.createdAt || new Date().toISOString()
+    );
+  } catch (err) {
+    console.error('Failed to insert detection record:', err.message);
+    // Don't throw - allow API to continue even if recording fails
+  }
 }
 
 function sendJson(res, status, body) {
@@ -176,22 +233,56 @@ function sendText(res, status, text, type = 'text/plain; charset=utf-8') {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
-    req.on('data', chunk => {
-      raw += chunk;
-      if (raw.length > 15_000_000) {
+    let resolved = false;
+    const MAX_SIZE = 20_000_000; // 20MB limit
+    const TIMEOUT = 30_000; // 30 second timeout
+    
+    const timeoutHandle = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
         req.destroy();
-        reject(new Error('Request body too large'));
+        reject(new Error('Request timeout'));
       }
-    });
-    req.on('end', () => {
-      if (!raw) return resolve({});
+    }, TIMEOUT);
+    
+    req.on('data', chunk => {
+      if (resolved) return;
+      
       try {
-        resolve(JSON.parse(raw));
-      } catch {
-        reject(new Error('Invalid JSON body'));
+        raw += chunk;
+        if (raw.length > MAX_SIZE) {
+          resolved = true;
+          clearTimeout(timeoutHandle);
+          req.destroy();
+          reject(new Error('Request body too large'));
+        }
+      } catch (err) {
+        resolved = true;
+        clearTimeout(timeoutHandle);
+        reject(err);
       }
     });
-    req.on('error', reject);
+    
+    req.on('end', () => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeoutHandle);
+      
+      try {
+        if (!raw) return resolve({});
+        const parsed = JSON.parse(raw);
+        resolve(parsed);
+      } catch (err) {
+        reject(new Error('Invalid JSON body: ' + err.message));
+      }
+    });
+    
+    req.on('error', (err) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeoutHandle);
+      reject(err);
+    });
   });
 }
 
@@ -306,6 +397,58 @@ function getMarketAdvice(crop) {
     <b>Sell checklist:</b><br>
     ${makeList(['Compare local trader price with APMC max price', 'Sell only after drying/cleaning to avoid quality cuts', 'Use Marketplace for small premium lots where direct buyers pay better', 'If price is rising and storage is safe, hold a small portion instead of selling all at once'])}<br><br>
     <b>Ask next:</b> Tell me your crop quantity and nearest town, and I can suggest a sell-vs-hold plan.`;
+}
+
+function check_price_trend(product) {
+  const requested = String(product || 'Tomato').trim().toLowerCase();
+  const productName = Object.keys(priceForecasts).find(name => name.toLowerCase() === requested) || 'Tomato';
+  const forecast = priceForecasts[productName];
+  const today = forecast[0];
+  const nextDays = forecast.slice(1, 4);
+  const lowerDays = nextDays.filter(day => day.price < today.price);
+  const higherDays = nextDays.filter(day => day.price > today.price);
+  const bestDay = forecast.reduce((best, day) => (day.price > best.price ? day : best), today);
+
+  if (lowerDays.length && !higherDays.length) {
+    const worstDrop = lowerDays.reduce((lowest, day) => (day.price < lowest.price ? day : lowest), lowerDays[0]);
+    return {
+      product: productName,
+      status: 'drop',
+      alert: true,
+      recommendation: 'Sell Today',
+      message: `Sell Today — ${productName} is ₹${today.price}/Q today and may drop to ₹${worstDrop.price}/Q by ${worstDrop.day}.`,
+      today,
+      bestDay: today,
+      expectedDrop: today.price - worstDrop.price,
+      dropDay: worstDrop,
+      forecast
+    };
+  }
+
+  if (!lowerDays.length && higherDays.length) {
+    return {
+      product: productName,
+      status: 'rise',
+      alert: false,
+      recommendation: 'Hold',
+      message: `Hold — prices rising. Best day: ${bestDay.day} at ₹${bestDay.price}/Q.`,
+      today,
+      bestDay,
+      expectedGain: bestDay.price - today.price,
+      forecast
+    };
+  }
+
+  return {
+    product: productName,
+    status: 'stable',
+    alert: false,
+    recommendation: 'Monitor',
+    message: `Stable prices — ${productName} should remain around ₹${today.price}/Q over the next 3 days.`,
+    today,
+    bestDay,
+    forecast
+  };
 }
 
 function getAIReply(message) {
@@ -423,6 +566,199 @@ function normaliseListing(body) {
   };
 }
 
+const diseaseDatabase = [
+  {
+    disease: 'Early Blight',
+    confidence: 87,
+    severity: 'Medium',
+    crop: 'Tomato crop',
+    affectedArea: '~30% of leaves',
+    treatment: 'Mancozeb 75% WP - 2.5g/L',
+    frequency: 'Every 10-14 days',
+    recovery: '7-10 days',
+    prevention: 'Remove infected leaves and avoid overhead irrigation'
+  },
+  {
+    disease: 'Wheat Rust',
+    confidence: 91,
+    severity: 'High',
+    crop: 'Wheat crop',
+    affectedArea: '~40% of leaf surface',
+    treatment: 'Propiconazole 25% EC - 1ml/L',
+    frequency: 'Repeat every 12-14 days',
+    recovery: '10-14 days',
+    prevention: 'Use resistant varieties and remove volunteer wheat plants'
+  },
+  {
+    disease: 'Powdery Mildew',
+    confidence: 84,
+    severity: 'Medium',
+    crop: 'Grape/Cucumber crop',
+    affectedArea: '~25% of leaf surface',
+    treatment: 'Sulfur dust 2% or Karathane 0.5ml/L',
+    frequency: 'Every 7-10 days',
+    recovery: '5-7 days',
+    prevention: 'Improve air circulation and reduce humidity'
+  },
+  {
+    disease: 'Leaf Spot (Septoria)',
+    confidence: 85,
+    severity: 'Medium',
+    crop: 'Wheat/Barley crop',
+    affectedArea: '~35% of leaves',
+    treatment: 'Mancozeb 75% WP - 2g/L',
+    frequency: 'Every 12 days',
+    recovery: '8-10 days',
+    prevention: 'Remove crop residue and use resistant varieties'
+  },
+  {
+    disease: 'Brown Spot',
+    confidence: 88,
+    severity: 'High',
+    crop: 'Rice crop',
+    affectedArea: '~45% of leaves',
+    treatment: 'Carbendazim 50% WP - 1g/L',
+    frequency: 'Repeat every 10 days',
+    recovery: '10-12 days',
+    prevention: 'Balanced nitrogen fertilization and good drainage'
+  },
+  {
+    disease: 'Bacterial Blight',
+    confidence: 82,
+    severity: 'High',
+    crop: 'Cotton crop',
+    affectedArea: '~50% of leaves and bolls',
+    treatment: 'Streptomycin 90% + Tetracycline 10% - 2ml/L',
+    frequency: 'Every 7-10 days',
+    recovery: '12-14 days',
+    prevention: 'Use clean seed and resistant varieties'
+  },
+  {
+    disease: 'Downy Mildew',
+    confidence: 83,
+    severity: 'Medium',
+    crop: 'Mustard/Radish crop',
+    affectedArea: '~20% of leaves',
+    treatment: 'Mancozeb 75% WP - 2.5g/L',
+    frequency: 'Every 10-14 days',
+    recovery: '6-8 days',
+    prevention: 'Avoid overhead irrigation and improve air flow'
+  },
+  {
+    disease: 'Yellow Vein Mosaic',
+    confidence: 79,
+    severity: 'High',
+    crop: 'Okra crop',
+    affectedArea: '~60% of plant',
+    treatment: 'Spray Imidacloprid 17.8% - 0.5ml/L for whitefly control',
+    frequency: 'Every 7 days',
+    recovery: '14-21 days',
+    prevention: 'Control whitefly vectors and use resistant varieties'
+  },
+  {
+    disease: 'Alternaria Leaf Spot',
+    confidence: 86,
+    severity: 'Medium',
+    crop: 'Potato crop',
+    affectedArea: '~30% of foliage',
+    treatment: 'Mancozeb 75% WP - 2.5g/L or Chlorothalonil 75% WP',
+    frequency: 'Every 10 days',
+    recovery: '8-10 days',
+    prevention: 'Remove infected leaves and improve spacing'
+  },
+  {
+    disease: 'Scab Disease',
+    confidence: 80,
+    severity: 'High',
+    crop: 'Apple/Pear crop',
+    affectedArea: '~40% of fruit surface',
+    treatment: 'Copper oxychloride 50% WP - 2.5g/L',
+    frequency: 'Every 10-14 days',
+    recovery: '12-15 days',
+    prevention: 'Prune infected branches and maintain good ventilation'
+  },
+  {
+    disease: 'Healthy Crop',
+    confidence: 94,
+    severity: 'Low',
+    crop: 'Crop sample',
+    affectedArea: 'No visible infection',
+    treatment: 'No chemical treatment needed',
+    frequency: 'Monitor weekly',
+    recovery: 'Already healthy',
+    prevention: 'Maintain balanced irrigation and field sanitation'
+  }
+];
+
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function findDiseaseByKeyword(text) {
+  const t = String(text || '').toLowerCase();
+  const keywordMap = [
+    { keys: ['healthy', 'normal', 'good'], disease: 'Healthy Crop' },
+    { keys: ['rust'], disease: 'Wheat Rust' },
+    { keys: ['powder', 'mildew'], disease: 'Powdery Mildew' },
+    { keys: ['downy'], disease: 'Downy Mildew' },
+    { keys: ['bacterial', 'blight'], disease: 'Bacterial Blight' },
+    { keys: ['brown'], disease: 'Brown Spot' },
+    { keys: ['mosaic', 'vein'], disease: 'Yellow Vein Mosaic' },
+    { keys: ['scab'], disease: 'Scab Disease' },
+    { keys: ['alternaria'], disease: 'Alternaria Leaf Spot' },
+    { keys: ['spot', 'septoria'], disease: 'Leaf Spot (Septoria)' }
+  ];
+
+  const hit = keywordMap.find(entry => entry.keys.some(key => t.includes(key)));
+  return hit ? diseaseDatabase.find(d => d.disease === hit.disease) : null;
+}
+
+function selectDiseaseByImage(dataUrl, filename) {
+  const byFilename = findDiseaseByKeyword(filename);
+  if (byFilename) return byFilename;
+
+  const parts = String(dataUrl || '').split(',');
+  const header = parts[0] || '';
+  const payload = parts[1] || '';
+
+  if (!payload) {
+    const fallbackIndex = hashString(`${header}|${filename}`) % diseaseDatabase.length;
+    return diseaseDatabase[fallbackIndex];
+  }
+
+  const payloadLen = payload.length;
+  const sampleSize = Math.min(2400, payloadLen);
+  const stride = Math.max(1, Math.floor(payloadLen / sampleSize));
+  let sampled = '';
+
+  for (let i = 0; i < payloadLen && sampled.length < sampleSize; i += stride) {
+    sampled += payload[i];
+  }
+
+  const midStart = Math.max(0, Math.floor(payloadLen / 2) - 300);
+  const tailStart = Math.max(0, payloadLen - 600);
+  const fingerprint = [
+    header,
+    filename,
+    payloadLen,
+    payload.slice(0, 600),
+    payload.slice(midStart, midStart + 600),
+    payload.slice(tailStart),
+    sampled
+  ].join('|');
+
+  const imageHash = hashString(fingerprint);
+  const modifier = (payloadLen + hashString(filename || '') + hashString(header)) % diseaseDatabase.length;
+  const index = (imageHash + modifier) % diseaseDatabase.length;
+  return diseaseDatabase[index];
+}
+
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/health') {
     return sendJson(res, 200, { ok: true, app: 'AgriSmart', timestamp: new Date().toISOString() });
@@ -434,56 +770,72 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/detect') {
-    const body = await readBody(req);
-    const filename = String(body.filename || 'uploaded-leaf.jpg');
-    const lower = filename.toLowerCase();
-    const result = lower.includes('rust')
-      ? {
-          disease: 'Wheat Rust',
-          confidence: 91,
-          severity: 'High',
-          crop: 'Wheat crop',
-          affectedArea: '~40% of leaf surface',
-          treatment: 'Propiconazole 25% EC - 1ml/L',
-          frequency: 'Repeat every 12-14 days',
-          recovery: '10-14 days',
-          prevention: 'Use resistant varieties and remove volunteer wheat plants'
-        }
-      : lower.includes('healthy')
-        ? {
-            disease: 'Healthy leaf',
-            confidence: 94,
-            severity: 'Low',
-            crop: 'Crop sample',
-            affectedArea: 'No visible infection',
-            treatment: 'No chemical treatment needed',
-            frequency: 'Monitor weekly',
-            recovery: 'Already healthy',
-            prevention: 'Maintain balanced irrigation and field sanitation'
-          }
-        : {
-            disease: 'Early Blight',
-            confidence: 87,
-            severity: 'Medium',
-            crop: 'Tomato crop',
-            affectedArea: '~30% of leaves',
-            treatment: 'Mancozeb 75% WP - 2.5g/L',
-            frequency: 'Every 10-14 days',
-            recovery: '7-10 days',
-            prevention: 'Remove infected leaves and avoid overhead irrigation'
-          };
-    insertDetection({
-      id: `detect-${Date.now()}`,
-      filename,
-      disease: result.disease,
-      confidence: result.confidence,
-      severity: result.severity,
-      createdAt: new Date().toISOString()
-    });
-    return sendJson(res, 200, {
-      ...result,
-      filename
-    });
+    try {
+      const body = await readBody(req);
+      
+      // Validate request body
+      if (!body || typeof body !== 'object') {
+        return sendJson(res, 400, { error: 'Invalid request body' });
+      }
+      
+      const filename = String(body.filename || 'uploaded-leaf.jpg').trim();
+      const dataUrl = String(body.dataUrl || '').trim();
+      
+      // Validate dataUrl is present and is a data URL
+      if (!dataUrl.startsWith('data:image/')) {
+        return sendJson(res, 400, { error: 'Invalid image data' });
+      }
+      
+      // Validate filename is reasonable length
+      if (filename.length > 255) {
+        return sendJson(res, 400, { error: 'Filename too long' });
+      }
+      
+      let result;
+      
+      // Detection logic - select disease based on image data hash
+      try {
+        result = selectDiseaseByImage(dataUrl, filename);
+      } catch (err) {
+        console.error('Detection logic error:', err);
+        result = {
+          disease: 'Unable to determine',
+          confidence: 0,
+          severity: 'Unknown',
+          crop: 'Crop sample',
+          affectedArea: 'Analysis failed',
+          treatment: 'Please consult a local agricultural expert',
+          frequency: 'N/A',
+          recovery: 'N/A',
+          prevention: 'Professional diagnosis recommended'
+        };
+      }
+      
+      // Validate result before storing
+      if (!result.disease || typeof result.confidence !== 'number') {
+        return sendJson(res, 500, { error: 'Internal detection error' });
+      }
+      
+      // Store detection record with error handling
+      try {
+        insertDetection({
+          id: `detect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          filename: filename.substring(0, 255),
+          disease: String(result.disease).substring(0, 255),
+          confidence: Math.max(0, Math.min(100, parseInt(result.confidence) || 0)),
+          severity: String(result.severity).substring(0, 100),
+          createdAt: new Date().toISOString()
+        });
+      } catch (dbErr) {
+        console.error('Database insert error:', dbErr);
+        // Don't fail the response if DB insert fails - return result anyway
+      }
+      
+      return sendJson(res, 200, { ...result, filename });
+    } catch (error) {
+      console.error('API detect error:', error);
+      return sendJson(res, 500, { error: 'Detection service error', message: error?.message });
+    }
   }
 
   if (req.method === 'POST' && url.pathname === '/api/predict') {
@@ -494,11 +846,16 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/market') {
     return sendJson(res, 200, {
       rows: mandiData,
+      priceAlerts: Object.keys(priceForecasts).map(check_price_trend),
       compare: {
         labels: ['Bangalore', 'Udupi', 'Hassan', 'Mangalore', 'Shivamogga', 'Mysore'],
         data: [2240, 2180, 2210, 2090, 2130, 2160]
       }
     });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/price-trend') {
+    return sendJson(res, 200, check_price_trend(url.searchParams.get('product')));
   }
 
   if (req.method === 'GET' && url.pathname === '/api/listings') {

@@ -35,7 +35,7 @@ Keep the terminal running while using the app.
 
 ## Run With VS Code Debugger
 
-1. Open the Run and Debug panel.
+1. Open the Run and Debug panel.    
 2. Choose `Run AgriSmart Backend (No Warnings)`.
 3. Press `F5`.
 4. Open `http://localhost:3000`.
