@@ -1,6 +1,6 @@
 # AgriSmart Prototype
 
-AgriSmart is a simple full-stack farming assistant prototype. It includes a Node.js backend, a single-page frontend, and a local SQLite database.
+AgriSmart is a market and produce-price prototype. It includes a Node.js backend, a market-prices page, a farmer marketplace, and a local SQLite database.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ This project uses Node's built-in `node:sqlite` module, so no npm packages need 
 2. Open this folder:
 
    ```text
-   C:\Users\nnami_9itp2db\OneDrive\Desktop\basavaraj
+   C:\Users\nnami_9itp2db\OneDrive\Desktop\agrismart
    ```
 
 3. Open the VS Code terminal.
@@ -56,11 +56,11 @@ Use `Terminal > Run Task... > Start AgriSmart`.
 ## Main API Routes
 
 - `GET /api/health`
-- `POST /api/chat`
-- `POST /api/detect`
-- `POST /api/predict`
 - `GET /api/market`
+- `GET /api/price-trend`
 - `GET /api/listings`
 - `POST /api/listings`
 - `GET /api/orders`
 - `POST /api/orders`
+
+Market prices and forecasts are sample demo data. Verify current prices with your local mandi before making a sale.

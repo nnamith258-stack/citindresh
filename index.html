@@ -1,1296 +1,408 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AgriSmart – Grow • Predict • Sell</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --green: #1D9E75; --green-dark: #0F6E56; --green-light: #E1F5EE;
-    --amber: #EF9F27; --red: #E24B4A; --blue: #378ADD;
-    --bg: #F5F7F4; --surface: #ffffff; --surface2: #F0F4F1;
-    --border: rgba(0,0,0,0.09); --border2: rgba(0,0,0,0.14);
-    --text: #1a1f1a; --text2: #5a6b5a; --text3: #8a9a8a;
-    --radius: 12px; --radius-sm: 8px;
-    --shadow: 0 2px 12px rgba(0,0,0,0.07);
-  }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-
-  /* ── TOPBAR ── */
-  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.05); }
-  .logo { display: flex; align-items: center; gap: 8px; padding: 14px 16px 14px 0; margin-right: 12px; border-right: 1px solid var(--border); }
-  .logo-icon { width: 32px; height: 32px; background: var(--green); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-  .logo-text { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
-  .logo-text span { color: var(--green); }
-  .nav-tab { padding: 16px 18px; font-size: 13.5px; font-weight: 500; color: var(--text2); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; white-space: nowrap; }
-  .nav-tab:hover { color: var(--text); background: var(--surface2); }
-  .nav-tab.active { color: var(--green-dark); border-bottom-color: var(--green); }
-  .nav-tab .tab-icon { margin-right: 6px; }
-  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-  .farmer-chip { display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: 20px; padding: 5px 12px 5px 6px; font-size: 13px; }
-  .farmer-avatar { width: 26px; height: 26px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700; }
-
-  /* ── LAYOUT ── */
-  .page { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
-  .page.active { display: block; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
-  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-  .card-sub { font-size: 13px; color: var(--text2); margin-bottom: 18px; }
-
-  /* ── METRIC CARDS ── */
-  .metric { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px 16px; }
-  .metric-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 5px; }
-  .metric-value { font-size: 22px; font-weight: 700; color: var(--text); }
-  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
-  .metric-green .metric-value { color: var(--green-dark); }
-
-  /* ── BADGES ── */
-  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
-  .badge-green { background: #d4edda; color: #155724; }
-  .badge-amber { background: #fff3cd; color: #856404; }
-  .badge-red { background: #f8d7da; color: #721c24; }
-  .badge-blue { background: #d1ecf1; color: #0c5460; }
-  .badge-purple { background: #e2d9f3; color: #4a235a; }
-
-  /* ── BUTTONS ── */
-  .btn { padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: var(--radius-sm); border: 1.5px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.15s; }
-  .btn:hover { background: var(--surface2); }
-  .btn-primary { background: var(--green); color: #fff; border-color: var(--green); }
-  .btn-primary:hover { background: var(--green-dark); border-color: var(--green-dark); }
-  .btn-sm { padding: 5px 12px; font-size: 12px; }
-  .btn-outline-green { border-color: var(--green); color: var(--green); background: transparent; }
-  .btn-outline-green:hover { background: var(--green-light); }
-
-  /* ── SECTION HEADER ── */
-  .section-header { margin-bottom: 20px; }
-  .section-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
-  .section-header p { font-size: 14px; color: var(--text2); margin-top: 3px; }
-
-  /* ══════════════════════════════
-     PAGE 1 – AI ASSISTANT
-  ══════════════════════════════ */
-  .chat-wrap { display: flex; flex-direction: column; height: 320px; }
-  .chat-messages { flex: 1; overflow-y: auto; padding: 14px; background: var(--surface2); border-radius: var(--radius-sm); margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
-  .msg { max-width: 82%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.55; }
-  .msg-ai { background: var(--surface); border: 1px solid var(--border); color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
-  .msg-ai .ai-tag { font-size: 11px; font-weight: 700; color: var(--green); display: block; margin-bottom: 3px; }
-  .msg-user { background: var(--green); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
-  .chat-input-row { display: flex; gap: 8px; }
-  .chat-input { flex: 1; padding: 10px 14px; font-size: 13.5px; border: 1.5px solid var(--border2); border-radius: var(--radius-sm); outline: none; background: var(--surface); transition: border 0.15s; }
-  .chat-input:focus { border-color: var(--green); }
-  .quick-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
-  .chip { font-size: 12px; padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--green); color: var(--green-dark); background: transparent; cursor: pointer; font-weight: 500; transition: all 0.15s; }
-  .chip:hover { background: var(--green-light); }
-  .disease-upload { border: 2px dashed var(--border2); border-radius: var(--radius-sm); padding: 24px; text-align: center; cursor: pointer; transition: all 0.15s; background: var(--surface2); }
-  .disease-upload:hover { border-color: var(--green); background: var(--green-light); }
-  .disease-preview { width: 100%; max-height: 150px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 10px; border: 1px solid var(--border); display: none; }
-  .disease-result { margin-top: 14px; display: none; }
-  .d-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .d-row:last-child { border: none; }
-  .d-row .label { color: var(--text2); }
-  .d-row .val { font-weight: 600; }
-
-  /* ══════════════════════════════
-     PAGE 2 – CROP PREDICT
-  ══════════════════════════════ */
-  .slider-block { margin-bottom: 16px; }
-  .slider-block label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-  .slider-block label span { color: var(--green-dark); font-weight: 700; }
-  input[type=range] { width: 100%; accent-color: var(--green); height: 6px; }
-  .predict-hero { background: linear-gradient(135deg, var(--green-light) 0%, #EAF3DE 100%); border-radius: var(--radius); padding: 22px; text-align: center; margin-bottom: 16px; border: 1px solid rgba(29,158,117,0.2); }
-  .predict-hero .big-num { font-size: 42px; font-weight: 800; color: var(--green-dark); letter-spacing: -1px; }
-  .predict-hero .big-label { font-size: 13px; color: #3B6D11; font-weight: 500; margin-top: 2px; }
-  .rec-crop-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--surface2); border-radius: var(--radius-sm); margin-bottom: 14px; border: 1px solid var(--border); }
-  .rec-crop-emoji { font-size: 40px; }
-  .rec-crop-info h3 { font-size: 17px; font-weight: 700; }
-  .rec-crop-info p { font-size: 12px; color: var(--text2); margin-top: 2px; }
-  select { width: 100%; padding: 9px 12px; font-size: 13px; border: 1.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
-  select:focus { border-color: var(--green); }
-
-  /* ══════════════════════════════
-     PAGE 3 – MARKET ADVISOR
-  ══════════════════════════════ */
-  table { width: 100%; border-collapse: collapse; }
-  th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text3); padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-  td { padding: 10px 12px; font-size: 13.5px; border-bottom: 1px solid var(--border); }
-  tr:last-child td { border: none; }
-  tr:hover td { background: var(--surface2); }
-  .trend-up { color: #1a7a3a; font-weight: 700; font-size: 12px; }
-  .trend-down { color: var(--red); font-weight: 700; font-size: 12px; }
-  .advisor-tip { border-left: 4px solid var(--green); padding: 12px 14px; background: var(--green-light); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-bottom: 12px; }
-  .advisor-tip h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--green-dark); }
-  .advisor-tip p { font-size: 12.5px; color: #2d5a3a; line-height: 1.5; }
-  .advisor-tip.warn { border-color: var(--amber); background: #fff8e1; }
-  .advisor-tip.warn h4 { color: #7c5a00; }
-  .advisor-tip.warn p { color: #5a4200; }
-  .sell-timing-banner { border: 2px solid var(--green); border-radius: var(--radius); padding: 16px; margin-bottom: 18px; background: var(--green-light); box-shadow: var(--shadow); }
-  .sell-timing-banner.drop { border-color: var(--red); background: #fff1f1; }
-  .sell-timing-banner.rise, .sell-timing-banner.stable { border-color: var(--green); background: var(--green-light); }
-  .sell-timing-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
-  .sell-timing-title { font-size: 16px; font-weight: 800; color: var(--green-dark); }
-  .sell-timing-banner.drop .sell-timing-title { color: #9f2525; }
-  .sell-timing-message { font-size: 13.5px; color: var(--text); line-height: 1.5; margin-bottom: 12px; }
-  .forecast-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .forecast-day { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; }
-  .forecast-day b { display: block; font-size: 12px; color: var(--text2); margin-bottom: 3px; }
-  .forecast-day span { font-size: 15px; font-weight: 800; color: var(--text); }
-  .profit-table td:last-child { text-align: right; font-weight: 600; }
-  .profit-total td { font-weight: 700; font-size: 15px; background: var(--green-light); }
-  .profit-total td:last-child { color: var(--green-dark); }
-
-  /* ══════════════════════════════
-     PAGE 4 – MARKETPLACE
-  ══════════════════════════════ */
-  .mp-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
-  .mp-tab { padding: 7px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border2); background: transparent; color: var(--text2); transition: all 0.15s; }
-  .mp-tab.active { background: var(--green); color: #fff; border-color: var(--green); }
-  .listing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .listing-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: transform 0.15s, box-shadow 0.15s; }
-  .listing-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-  .listing-img { height: 90px; display: flex; align-items: center; justify-content: center; font-size: 44px; }
-  .listing-body { padding: 12px 14px; }
-  .listing-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
-  .listing-farmer { font-size: 11.5px; color: var(--text2); margin-bottom: 8px; }
-  .listing-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-  .listing-price { font-size: 16px; font-weight: 800; color: var(--green-dark); }
-  .form-group { margin-bottom: 14px; }
-  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
-  .form-group input, .form-group select { width: 100%; padding: 10px 12px; font-size: 13.5px; border: 1.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; transition: border 0.15s; }
-  .form-group input:focus, .form-group select:focus { border-color: var(--green); }
-  .my-listing-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .my-listing-row:last-child { border: none; }
-  .order-row { display: grid; grid-template-columns: 1.2fr 0.9fr 0.8fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .order-row:last-child { border: none; }
-  .why-sell { background: linear-gradient(135deg, var(--green-light), #EAF3DE); border-radius: var(--radius-sm); padding: 16px; margin-top: 14px; }
-  .why-sell h4 { font-size: 13px; font-weight: 700; color: var(--green-dark); margin-bottom: 8px; }
-  .why-sell li { font-size: 12.5px; color: #2d5a3a; margin-bottom: 5px; list-style: none; padding-left: 14px; position: relative; line-height: 1.5; }
-  .why-sell li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
-
-  /* ── STATUS BAR ── */
-  .status-bar { background: var(--green); color: #fff; text-align: center; padding: 7px; font-size: 12px; font-weight: 500; letter-spacing: 0.2px; }
-  .status-bar span { opacity: 0.75; margin: 0 12px; }
-
-  /* ── TOAST ── */
-  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 12px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(10px); transition: all 0.25s; pointer-events: none; z-index: 999; }
-  #toast.show { opacity: 1; transform: translateY(0); }
-
-  @media (max-width: 900px) {
-    .grid2, .grid3, .grid4, .listing-grid { grid-template-columns: 1fr; }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriSmart | Market & Prices</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #1a1f1a;
+      background: #f5f7f4;
+      --green: #1d9e75;
+      --green-dark: #0f6e56;
+      --green-light: #e1f5ee;
+      --surface: #fff;
+      --surface2: #f0f4f1;
+      --border: rgba(0, 0, 0, .1);
+      --text2: #5a6b5a;
+      --text3: #7a897a;
+      --red: #c83d3d;
+      --shadow: 0 2px 12px rgba(0, 0, 0, .06);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    button, input, select { font: inherit; }
+    .topbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 0 max(20px, calc((100% - 1180px) / 2)); background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow); }
+    .logo { display: flex; align-items: center; gap: 9px; margin-right: 14px; padding: 14px 18px 14px 0; border-right: 1px solid var(--border); font-size: 17px; font-weight: 750; white-space: nowrap; }
+    .logo-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; background: var(--green); color: #fff; }
+    .logo span { color: var(--green); }
+    .nav-tab { padding: 18px 14px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--text2); cursor: pointer; white-space: nowrap; }
+    .nav-tab:hover, .nav-tab.active { color: var(--green-dark); }
+    .nav-tab.active { border-bottom-color: var(--green); }
+    .topbar-note { margin-left: auto; color: var(--text2); font-size: 13px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .section-header { margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 25px; letter-spacing: -.4px; }
+    .section-header p, .sub { margin: 5px 0 0; color: var(--text2); font-size: 14px; }
+    .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+    .card { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+    .card + .card { margin-top: 16px; }
+    .card-title { font-size: 16px; font-weight: 700; }
+    .card-sub { margin: 4px 0 16px; color: var(--text2); font-size: 13px; }
+    .forecast { margin-bottom: 18px; padding: 18px; border: 1px solid #b9e8d8; border-radius: 12px; background: var(--green-light); }
+    .forecast.drop { border-color: #efb4b4; background: #fff1f1; }
+    .forecast-head { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+    .forecast-title { font-size: 17px; font-weight: 750; color: var(--green-dark); }
+    .forecast.drop .forecast-title { color: #9f2525; }
+    .forecast-message { margin-top: 5px; font-size: 13px; line-height: 1.5; }
+    select, input { min-width: 0; padding: 9px 11px; border: 1px solid #cbd4cb; border-radius: 8px; background: white; }
+    .forecast-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+    .forecast-day { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: white; }
+    .forecast-day b, .forecast-day span { display: block; }
+    .forecast-day b { margin-bottom: 4px; color: var(--text2); font-size: 12px; }
+    .forecast-day span { font-weight: 750; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+    th { padding: 11px 12px; border-bottom: 1px solid var(--border); color: var(--text3); font-size: 11px; text-align: left; text-transform: uppercase; }
+    td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    .trend-up { color: #167746; font-weight: 700; }
+    .trend-down { color: var(--red); font-weight: 700; }
+    .btn { padding: 8px 13px; border: 1px solid #cbd4cb; border-radius: 8px; background: white; color: #1a1f1a; font-weight: 650; cursor: pointer; }
+    .btn:hover { background: var(--surface2); }
+    .btn-primary { border-color: var(--green); background: var(--green); color: white; }
+    .btn-primary:hover { border-color: var(--green-dark); background: var(--green-dark); }
+    .btn-small { padding: 5px 10px; font-size: 12px; }
+    .chart { position: relative; height: 260px; }
+    .notice { margin-top: 14px; color: var(--text3); font-size: 12px; line-height: 1.5; }
+    .mp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .mp-tab { padding: 8px 15px; border: 1px solid #cbd4cb; border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; font-weight: 650; }
+    .mp-tab.active { border-color: var(--green); background: var(--green); color: white; }
+    .listing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+    .listing-card { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: white; box-shadow: var(--shadow); }
+    .listing-image { display: grid; height: 92px; place-items: center; font-size: 43px; }
+    .listing-body { padding: 13px; }
+    .listing-name { font-weight: 750; }
+    .listing-farmer { margin: 4px 0 10px; color: var(--text2); font-size: 12px; }
+    .listing-meta { color: var(--text3); font-size: 12px; }
+    .listing-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+    .listing-price { color: var(--green-dark); font-size: 16px; font-weight: 800; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .form-group label { display: block; margin-bottom: 5px; color: var(--text2); font-size: 12px; font-weight: 700; }
+    .form-group input, .form-group select { width: 100%; }
+    .form-actions { margin-top: 14px; }
+    .my-listing-row, .order-row { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .my-listing-row:last-child, .order-row:last-child { border-bottom: 0; }
+    .empty { padding: 24px 0; color: var(--text3); text-align: center; font-size: 13px; }
+    #toast { position: fixed; right: 20px; bottom: 20px; z-index: 5; padding: 12px 18px; border-radius: 8px; background: #1a1f1a; color: white; opacity: 0; transform: translateY(8px); transition: .2s; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 800px) {
+      .grid2 { grid-template-columns: 1fr; }
+      .listing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar { flex-wrap: wrap; gap: 0; padding: 0 12px; }
+      .logo { margin-right: 4px; }
+      .nav-tab { padding: 15px 10px; font-size: 13px; }
+      .topbar-note { display: none; }
+    }
+    @media (max-width: 520px) {
+      main { padding: 20px 12px 36px; }
+      .listing-grid, .form-grid { grid-template-columns: 1fr; }
+      .forecast-head { flex-direction: column; }
+      .forecast-strip { grid-template-columns: repeat(2, 1fr); }
+      .logo { width: 100%; border-right: 0; }
+      .my-listing-row, .order-row { grid-template-columns: 1fr auto; }
+    }
+  </style>
 </head>
 <body>
+  <header class="topbar">
+    <div class="logo"><span class="logo-icon">🌾</span> Agri<span>Smart</span></div>
+    <button class="nav-tab active" data-page="market" onclick="switchPage('market')">💰 Market Prices</button>
+    <button class="nav-tab" data-page="marketplace" onclick="switchPage('marketplace')">🛒 Marketplace</button>
+    <div class="topbar-note">Mandi prices and direct farmer-to-buyer listings</div>
+  </header>
 
-<!-- STATUS BAR -->
-<div class="status-bar">
-  🟢 Live Demo Mode &nbsp;|&nbsp;
-  <span>Weather: 28°C, Partly cloudy</span>
-  <span>Soil moisture: 67% (optimal)</span>
-  <span>Kharif season advisory active</span>
-</div>
-
-<!-- TOPBAR -->
-<div class="topbar">
-  <div class="logo">
-    <div class="logo-icon">🌾</div>
-    <div class="logo-text">Agri<span>Smart</span></div>
-  </div>
-  <div class="nav-tab active" onclick="switchPage('ai')"><span class="tab-icon">🧠</span> AI Assistant</div>
-  <div class="nav-tab" onclick="switchPage('predict')"><span class="tab-icon">📈</span> Crop Predict</div>
-  <div class="nav-tab" onclick="switchPage('market')"><span class="tab-icon">💰</span> Market Advisor</div>
-  <div class="nav-tab" onclick="switchPage('marketplace')"><span class="tab-icon">🛒</span> Marketplace</div>
-  <div class="topbar-right">
-    <div class="farmer-chip">
-      <div class="farmer-avatar">RP</div>
-      Raju Patel
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════
-     PAGE 1 – AI SMART FARMING ASSISTANT
-════════════════════════════════════ -->
-<div class="page active" id="page-ai">
-  <div class="section-header">
-    <h2>🧠 AI Smart Farming Assistant</h2>
-    <p>Ask anything about crops, diseases, fertilizers, or best practices</p>
-  </div>
-
-  <div class="grid4">
-    <div class="metric metric-green"><div class="metric-label">Soil Moisture</div><div class="metric-value">67%</div><div class="metric-sub">Optimal (60–70%)</div></div>
-    <div class="metric"><div class="metric-label">Temperature</div><div class="metric-value">28°C</div><div class="metric-sub">Good for growth</div></div>
-    <div class="metric"><div class="metric-label">Next Irrigation</div><div class="metric-value">2 days</div><div class="metric-sub">Scheduled Thu</div></div>
-    <div class="metric metric-green"><div class="metric-label">Crop Health</div><div class="metric-value">Good</div><div class="metric-sub">No active alerts</div></div>
-  </div>
-
-  <div class="grid2">
-    <!-- CHATBOT -->
-    <div class="card">
-      <div class="card-title">Crop Advisor Chat</div>
-      <div class="card-sub">Ask in text — get expert advice instantly</div>
-      <div class="quick-chips">
-        <button class="chip" onclick="quickAsk('Wheat has orange rust pustules after humid weather. What should I do?')">🌿 Wheat rust</button>
-        <button class="chip" onclick="quickAsk('Tomato crop is 45 days old. What fertilizer schedule should I follow?')">🍅 Tomato nutrition</button>
-        <button class="chip" onclick="quickAsk('Rice field soil is drying after transplanting. When should I irrigate?')">💧 Rice irrigation</button>
-        <button class="chip" onclick="quickAsk('Cotton leaves are curling and I see whitefly under leaves. What is the action plan?')">🌸 Cotton pests</button>
-        <button class="chip" onclick="quickAsk('Should I sell wheat now or wait for a better mandi price?')">💰 Sell or hold</button>
+  <main>
+    <section class="page active" id="page-market">
+      <div class="section-header">
+        <h1>Market Prices & Selling Advice</h1>
+        <p>Compare sample mandi rates and check the short-term price outlook for your crop.</p>
       </div>
-      <div class="chat-wrap">
-        <div class="chat-messages" id="chatMessages">
-          <div class="msg msg-ai">
-            <span class="ai-tag">AgriSmart AI</span>
-            👋 Hello Raju! I'm your smart farming assistant. Ask me about crop diseases, fertilizers, irrigation timing, or best practices. You can also describe a problem with your crop and I'll help diagnose it!
+      <div class="grid2">
+        <div>
+          <div class="forecast" id="sellTimingBanner">
+            <div class="forecast-head">
+              <div>
+                <div class="forecast-title" id="sellTimingTitle">Checking price outlook...</div>
+                <div class="forecast-message" id="sellTimingMessage">Loading forecast.</div>
+              </div>
+              <select id="sellTimingProduct" aria-label="Choose a crop for the price outlook" onchange="updateSellTiming(this.value)">
+                <option>Tomato</option><option>Wheat</option><option>Rice</option>
+                <option>Cotton</option><option>Mustard</option><option>Onion</option>
+              </select>
+            </div>
+            <div class="forecast-strip" id="forecastStrip"></div>
+          </div>
+          <div class="card" style="padding:0; overflow:hidden;">
+            <div style="padding:16px 18px;border-bottom:1px solid var(--border)">
+              <div class="card-title">Mandi Prices</div>
+              <div class="card-sub" style="margin-bottom:0">Sample prices in ₹ per quintal</div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Crop</th><th>Mandi</th><th>Min ₹/Q</th><th>Max ₹/Q</th><th>Trend</th><th></th></tr></thead>
+                <tbody id="mandiBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div class="chat-input-row">
-          <input class="chat-input" id="chatInput" type="text" placeholder="e.g. My tomato leaves have yellow spots..." onkeydown="if(event.key==='Enter')sendMessage()" />
-          <button class="btn btn-primary" onclick="sendMessage()">Send ↗</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- DISEASE DETECTION -->
-    <div class="card">
-      <div class="card-title">🔬 AI Disease Detection</div>
-      <div class="card-sub">Upload a crop photo — AI identifies disease instantly</div>
-      <input type="file" id="diseaseFile" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="handleDiseaseFile(event)" />
-      <div class="disease-upload" onclick="document.getElementById('diseaseFile').click()" id="uploadBox">
-        <img id="diseasePreview" class="disease-preview" alt="Selected crop leaf preview" />
-        <div style="font-size: 36px; margin-bottom: 8px;">📷</div>
-        <div style="font-size: 14px; font-weight: 600; color: var(--text2);">Click to upload crop image</div>
-        <div style="font-size: 12px; color: var(--text3); margin-top: 4px;">Supports: JPG, PNG — max 10MB</div>
-        <div style="margin-top: 12px;">
-          <span class="badge badge-green">TensorFlow Lite</span>
-          <span class="badge badge-blue" style="margin-left: 6px;">Plant.id API</span>
-        </div>
-      </div>
-      <div class="disease-result" id="diseaseResult">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-          <span style="font-size:13px; font-weight:700;">Detection Results</span>
-          <span class="badge badge-amber" id="detectConfidence">87% confidence</span>
-          <span class="badge badge-blue" style="margin-left:auto;" id="detectCrop">Tomato crop</span>
-        </div>
-        <div class="d-row"><span class="label">Disease detected</span><span class="val" id="detectDisease" style="color:#7c4a00;">Early Blight (Alternaria solani)</span></div>
-        <div class="d-row"><span class="label">Severity level</span><span class="val"><span class="badge badge-amber" id="detectSeverity">Moderate</span></span></div>
-        <div class="d-row"><span class="label">Affected area</span><span class="val" id="detectAffected">~30% of leaves</span></div>
-        <div class="d-row"><span class="label">Recommended treatment</span><span class="val" id="detectTreatment" style="color:var(--green-dark);">Mancozeb 75% WP — 2.5g/L</span></div>
-        <div class="d-row"><span class="label">Spray frequency</span><span class="val" id="detectFrequency">Every 10–14 days</span></div>
-        <div class="d-row"><span class="label">Expected recovery</span><span class="val" id="detectRecovery">7–10 days</span></div>
-        <button class="btn btn-primary" id="detectAskBtn" style="width:100%; margin-top:14px;" onclick="quickAsk('Detailed treatment plan for Early Blight in tomatoes?')">Get full treatment plan ↗</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════
-     PAGE 2 – CROP YIELD / PRICE PREDICTION
-════════════════════════════════════ -->
-<div class="page" id="page-predict">
-  <div class="section-header">
-    <h2>📈 Crop Yield & Price Prediction</h2>
-    <p>Adjust farm parameters to see AI-powered yield forecasts and price predictions</p>
-  </div>
-
-  <div class="grid2">
-    <!-- INPUTS -->
-    <div>
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-title">Farm Parameters</div>
-        <div class="card-sub">Tune inputs to refine predictions</div>
-
-        <div class="slider-block">
-          <label>Rainfall (mm) <span id="rfShow">650 mm</span></label>
-          <input type="range" min="200" max="1200" value="650" id="slRainfall" oninput="updatePredictions()">
-        </div>
-        <div class="slider-block">
-          <label>Temperature (°C) <span id="tmpShow">26°C</span></label>
-          <input type="range" min="10" max="45" value="26" id="slTemp" oninput="updatePredictions()">
-        </div>
-        <div class="slider-block">
-          <label>Soil Nitrogen (kg/ha) <span id="nShow">90 kg/ha</span></label>
-          <input type="range" min="20" max="200" value="90" id="slNitrogen" oninput="updatePredictions()">
-        </div>
-        <div class="slider-block">
-          <label>Farm Area (acres) <span id="areaShow">10 acres</span></label>
-          <input type="range" min="1" max="50" value="10" id="slArea" oninput="updatePredictions()">
-        </div>
-        <div class="slider-block" style="margin-bottom:0;">
-          <label>Irrigation Type <span id="irrShow"></span></label>
-          <select id="slIrr" onchange="updatePredictions()">
-            <option value="1.2">Drip irrigation (+20% efficiency)</option>
-            <option value="1.0" selected>Flood irrigation (standard)</option>
-            <option value="0.8">Rain-fed (risk)</option>
-            <option value="1.15">Sprinkler (+15% efficiency)</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- CROP RECOMMENDATION -->
-      <div class="card">
-        <div class="card-title">🌱 Best Crop Recommendation</div>
-        <div class="card-sub">AI suggests best crop based on your conditions</div>
-        <div class="rec-crop-card">
-          <div class="rec-crop-emoji" id="recEmoji">🌾</div>
-          <div class="rec-crop-info">
-            <h3 id="recName">Wheat</h3>
-            <p id="recReason">Ideal for 650mm rainfall & 26°C temperature</p>
+        <div>
+          <div class="card">
+            <div class="card-title">Compare prices across mandis</div>
+            <div class="card-sub">Sample comparison for local markets</div>
+            <div class="chart"><canvas id="mandiCompareChart"></canvas></div>
           </div>
-          <span class="badge badge-green">Top pick</span>
-        </div>
-        <div class="grid3">
-          <div class="metric"><div class="metric-label">Profitability</div><div class="metric-value" id="recProfit" style="font-size:16px; color:var(--green-dark);">High</div></div>
-          <div class="metric"><div class="metric-label">Water Need</div><div class="metric-value" id="recWater" style="font-size:16px;">Medium</div></div>
-          <div class="metric"><div class="metric-label">Grow Time</div><div class="metric-value" id="recTime" style="font-size:16px;">110 days</div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- PREDICTIONS + CHART -->
-    <div>
-      <div class="predict-hero">
-        <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#3B6D11; margin-bottom:4px;">Predicted Yield</div>
-        <div class="big-num" id="yieldNum">3.2 T/ac</div>
-        <div class="big-label">per acre this season</div>
-      </div>
-
-      <div class="grid2" style="margin-bottom:20px; gap:14px;">
-        <div class="metric" style="text-align:center;">
-          <div class="metric-label">Expected Price</div>
-          <div class="metric-value" id="priceNum" style="font-size:26px; color:#185FA5;">₹4,200</div>
-          <div class="metric-sub">per quintal</div>
-        </div>
-        <div class="metric" style="text-align:center;">
-          <div class="metric-label">Total Revenue</div>
-          <div class="metric-value" id="revenueNum" style="font-size:26px; color:var(--green-dark);">₹1,34,400</div>
-          <div class="metric-sub">estimated</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Price Trend (Next 6 Months)</div>
-        <div style="position:relative; height:200px; margin-top:14px;">
-          <canvas id="priceTrendChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════
-     PAGE 3 – MARKET ADVISOR
-════════════════════════════════════ -->
-<div class="page" id="page-market">
-  <div class="section-header">
-    <h2>💰 Market Advisor</h2>
-    <p>Live mandi prices, selling recommendations, and profit calculations</p>
-  </div>
-
-  <div class="grid2">
-    <!-- LEFT: MANDI TABLE + ADVISORS -->
-    <div>
-      <div class="sell-timing-banner" id="sellTimingBanner">
-        <div class="sell-timing-head">
-          <div>
-            <div class="sell-timing-title" id="sellTimingTitle">Checking sell timing...</div>
-            <div class="sell-timing-message" id="sellTimingMessage">Loading 3-day price forecast.</div>
+          <div class="card">
+            <div class="card-title">Selling checklist</div>
+            <ul style="padding-left:19px;color:var(--text2);font-size:13px;line-height:1.9">
+              <li>Compare mandi rates with local trader offers.</li>
+              <li>Check crop quality, moisture, and transport costs before choosing a market.</li>
+              <li>Use the marketplace to list produce for direct buyers.</li>
+              <li>Verify current rates with your local mandi before making a sale.</li>
+            </ul>
           </div>
-          <select id="sellTimingProduct" style="max-width:160px;" onchange="updateSellTiming(this.value)">
-            <option>Tomato</option>
-            <option>Wheat</option>
-            <option>Rice</option>
-            <option>Cotton</option>
-            <option>Mustard</option>
-            <option>Onion</option>
-          </select>
+          <p class="notice">Prices and forecasts shown here are sample demo data, not live market quotes or guaranteed predictions.</p>
         </div>
-        <div class="forecast-strip" id="forecastStrip"></div>
       </div>
+    </section>
 
-      <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
-        <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
-          <div>
-            <div class="card-title" style="margin:0;">Live Mandi Prices</div>
-            <div style="font-size:12px; color:var(--text3); margin-top:2px;">Updated: Today, 9:45 AM</div>
+    <section class="page" id="page-marketplace">
+      <div class="section-header">
+        <h1>Farmer Marketplace</h1>
+        <p>Browse produce, place a demo order, or publish your own crop listing.</p>
+      </div>
+      <div class="mp-tabs">
+        <button class="mp-tab active" id="mpBrowse" onclick="switchMpTab('browse')">Browse Listings</button>
+        <button class="mp-tab" id="mpSell" onclick="switchMpTab('sell')">List Produce</button>
+        <button class="mp-tab" id="mpOrders" onclick="switchMpTab('orders')">Orders</button>
+      </div>
+      <div id="mpBrowseTab"><div class="listing-grid" id="listingGrid"></div></div>
+      <div id="mpSellTab" style="display:none">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title">Add a crop listing</div>
+            <div class="card-sub">Set your quantity, price, and location for buyers.</div>
+            <div class="form-grid">
+              <div class="form-group"><label for="fCrop">Crop or produce</label><input id="fCrop" placeholder="e.g. Tomatoes"></div>
+              <div class="form-group"><label for="fQty">Quantity available</label><input id="fQty" placeholder="e.g. 50 kg"></div>
+              <div class="form-group"><label for="fPrice">Price per kg (₹)</label><input id="fPrice" type="number" min="1" step="0.01" placeholder="e.g. 25"></div>
+              <div class="form-group"><label for="fLoc">Location</label><input id="fLoc" placeholder="Village / District"></div>
+              <div class="form-group"><label for="fGrade">Quality</label><select id="fGrade"><option>A-grade (premium)</option><option>B-grade (standard)</option><option>Organic certified</option><option>Farm fresh</option></select></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary" onclick="addListing()">Publish listing</button></div>
           </div>
-          <span class="badge badge-green">Live</span>
-        </div>
-        <table>
-          <thead>
-            <tr><th>Crop</th><th>Mandi</th><th>Min ₹/Q</th><th>Max ₹/Q</th><th>Trend</th><th>Action</th></tr>
-          </thead>
-          <tbody id="mandiBody">
-          </tbody>
-        </table>
-      </div>
-
-      <div class="advisor-tip">
-        <h4>⏰ Best time to sell: Wheat</h4>
-        <p>Prices expected to rise 8–12% over next 3 weeks due to reduced supply from Punjab. Hold stock if possible. Current: ₹2,180/Q → Target: ₹2,380/Q by Dec 15.</p>
-      </div>
-      <div class="advisor-tip warn">
-        <h4>📍 Best market: Tomato → APMC Bengaluru</h4>
-        <p>APMC Bengaluru offers ₹1,850/Q vs local avg ₹1,400/Q. Transport ≈ ₹120/Q. Net benefit: ₹330 extra per quintal. Arrange transport by Friday market day.</p>
-      </div>
-    </div>
-
-    <!-- RIGHT: PROFIT CALC + CHART -->
-    <div>
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-title">Profit Calculator – Wheat (10 acres)</div>
-        <div class="card-sub" style="margin-bottom:14px;">Based on current mandi prices and input costs</div>
-        <table class="profit-table">
-          <tbody>
-            <tr><td>Yield (10 ac × 3.2T)</td><td>32 quintals</td></tr>
-            <tr><td>Current mandi price</td><td>₹2,180 / quintal</td></tr>
-            <tr><td>Gross revenue</td><td>₹69,760</td></tr>
-            <tr><td>Seeds + fertilizer</td><td style="color:var(--red);">− ₹12,000</td></tr>
-            <tr><td>Labor cost</td><td style="color:var(--red);">− ₹8,500</td></tr>
-            <tr><td>Pesticides</td><td style="color:var(--red);">− ₹2,200</td></tr>
-            <tr><td>Transport to mandi</td><td style="color:var(--red);">− ₹1,200</td></tr>
-            <tr class="profit-total"><td>✅ Net Profit</td><td style="color:var(--green-dark);">₹45,860</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Price Comparison Across Mandis</div>
-        <div style="position:relative; height:200px; margin-top:14px;">
-          <canvas id="mandiCompareChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════
-     PAGE 4 – MARKETPLACE
-════════════════════════════════════ -->
-<div class="page" id="page-marketplace">
-  <div class="section-header">
-    <h2>🛒 Direct Farmer-to-Customer Marketplace</h2>
-    <p>Buy fresh from farmers. Zero middlemen. Better prices for everyone.</p>
-  </div>
-
-  <div class="mp-tabs">
-    <button class="mp-tab active" id="mpBrowse" onclick="switchMpTab('browse')">🔍 Browse Listings</button>
-    <button class="mp-tab" id="mpSell" onclick="switchMpTab('sell')">➕ List Your Crop</button>
-    <button class="mp-tab" id="mpOrders" onclick="switchMpTab('orders')">Orders</button>
-  </div>
-
-  <!-- BROWSE -->
-  <div id="mpBrowseTab">
-    <div class="listing-grid" id="listingGrid"></div>
-  </div>
-
-  <!-- SELL -->
-  <div id="mpSellTab" style="display:none;">
-    <div class="grid2">
-      <div class="card">
-        <div class="card-title">Add New Crop Listing</div>
-        <div class="card-sub">Reach buyers directly in your district</div>
-        <div class="form-group"><label>Crop Name</label><input type="text" id="fCrop" placeholder="e.g. Tomato, Wheat, Onion..." /></div>
-        <div class="form-group"><label>Quantity Available</label><input type="text" id="fQty" placeholder="e.g. 50 kg, 5 quintal..." /></div>
-        <div class="form-group"><label>Price per kg (₹)</label><input type="number" id="fPrice" placeholder="e.g. 25" /></div>
-        <div class="form-group"><label>Your Location</label><input type="text" id="fLoc" placeholder="Village / District" /></div>
-        <div class="form-group"><label>Quality Grade</label>
-          <select id="fGrade"><option>A-grade (premium)</option><option>B-grade (standard)</option><option>Organic certified</option><option>Farm fresh</option></select>
-        </div>
-        <div class="form-group"><label>Harvest Date</label><input type="date" id="fDate" /></div>
-        <button class="btn btn-primary" style="width:100%;" onclick="addListing()">🚀 List Crop for Sale</button>
-      </div>
-
-      <div>
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title">Your Active Listings</div>
-          <div id="myListingsBox">
-            <div style="text-align:center; color:var(--text3); font-size:13px; padding:24px 0;">No listings yet. Add your first crop above!</div>
+          <div class="card">
+            <div class="card-title">Your active listings</div>
+            <div id="myListingsBox"><div class="empty">You have not published any listings yet.</div></div>
           </div>
         </div>
-        <div class="why-sell">
-          <h4>Why sell directly on AgriSmart?</h4>
-          <ul>
-            <li>Skip middlemen — earn 20–35% more per sale</li>
-            <li>Direct connection with verified buyers in your region</li>
-            <li>Payments in 24–48 hours (simulated in demo)</li>
-            <li>Build repeat customer relationships</li>
-            <li>Track your orders and earnings in real-time</li>
-            <li>Free to list — no commission for first 3 months</li>
-          </ul>
+      </div>
+      <div id="mpOrdersTab" style="display:none">
+        <div class="card">
+          <div class="card-title">Marketplace orders</div>
+          <div class="card-sub">Orders placed from the browse listings tab.</div>
+          <div id="ordersBox"><div class="empty">No orders yet.</div></div>
         </div>
       </div>
-    </div>
-  </div>
+    </section>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script>
+    const sampleListings = [
+      { id: 'seed-1', name: 'Organic Tomatoes', farmer: 'Raju Patel · Nashik, MH', qty: '200 kg', price: '₹28/kg', grade: 'Organic', emoji: '🍅', bg: '#FAECE7' },
+      { id: 'seed-2', name: 'Basmati Rice', farmer: 'Harpreet Singh · Amritsar, PB', qty: '50 quintal', price: '₹55/kg', grade: 'A-grade', emoji: '🌾', bg: '#EAF3DE' },
+      { id: 'seed-3', name: 'Fresh Onions', farmer: 'Suresh Mali · Indore, MP', qty: '100 kg', price: '₹18/kg', grade: 'B-grade', emoji: '🧅', bg: '#FAEEDA' },
+      { id: 'seed-4', name: 'Green Chillies', farmer: 'Meera Devi · Guntur, AP', qty: '30 kg', price: '₹45/kg', grade: 'A-grade', emoji: '🌶️', bg: '#FCEBEB' },
+      { id: 'seed-5', name: 'Alphonso Mangoes', farmer: 'Dinesh Sawant · Ratnagiri, MH', qty: '150 kg', price: '₹120/kg', grade: 'Premium', emoji: '🥭', bg: '#FFF8E1' },
+      { id: 'seed-6', name: 'Baby Potatoes', farmer: 'Rajesh Kumar · Agra, UP', qty: '80 kg', price: '₹22/kg', grade: 'A-grade', emoji: '🥔', bg: '#F3E5F5' }
+    ];
+    let mandiRows = [];
+    let priceAlerts = [];
+    let allListings = [...sampleListings];
+    let myListings = [];
+    let orders = [];
+    let compareChart;
 
-  <!-- ORDERS -->
-  <div id="mpOrdersTab" style="display:none;">
-    <div class="card">
-      <div class="card-title">Marketplace Orders</div>
-      <div class="card-sub">Track buyer requests created from the marketplace</div>
-      <div id="ordersBox">
-        <div style="text-align:center; color:var(--text3); font-size:13px; padding:24px 0;">No orders yet. Place an order from Browse Listings.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div id="toast"></div>
-
-<script>
-/* ══════════════════════
-   NAVIGATION
-══════════════════════ */
-function switchPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  const map = {ai:0,predict:1,market:2,marketplace:3};
-  document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
-  if (id === 'predict') initPredictCharts();
-  if (id === 'market') initMarketCharts();
-  if (id === 'marketplace') renderListings();
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
-}
-
-async function apiRequest(path, options = {}) {
-  const timeout = options.timeout || 30000; // Default 30 second timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
-  try {
-    const response = await fetch(path, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      signal: controller.signal,
-      ...options
-    });
-    
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+    async function apiRequest(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        ...options
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+      return data;
     }
-    
-    return data;
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error(`Request timeout (${timeout}ms)`);
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      })[char]);
     }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, ch => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  }[ch]));
-}
-
-/* ══════════════════════
-   AI ASSISTANT
-══════════════════════ */
-const aiReplies = {
-  'wheat rust': `<b>Wheat Rust Treatment Plan</b><br><br>
-    🔬 <b>Disease:</b> Puccinia striiformis (Yellow rust) or P. triticina (Leaf rust)<br><br>
-    💊 <b>Treatment:</b><br>
-    &bull; Propiconazole 25% EC — 0.1% (1ml/L water)<br>
-    &bull; Tebuconazole 25.9% EC — 0.1%<br>
-    &bull; Spray at first sign of orange/yellow pustules<br><br>
-    📅 <b>Schedule:</b> Repeat every 12–14 days for 2 cycles<br>
-    🌿 <b>Prevention:</b> Use rust-resistant varieties (HD-2967, PBW-550)`,
-
-  'tomato': `<b>Tomato Fertilizer Schedule</b><br><br>
-    🌱 <b>At transplant:</b> NPK 19:19:19 — 5g/plant<br>
-    🌿 <b>Vegetative (15–30 days):</b> Urea 2g/L + micronutrient<br>
-    🍅 <b>Fruiting (45+ days):</b> NPK 0:0:50 — 5g/plant (high potassium for fruit quality)<br><br>
-    <b>Organic option:</b> 2kg compost + 200g neem cake per plant<br>
-    💧 <b>Tip:</b> Use drip fertigation for 40% better absorption`,
-
-  'rice': `<b>Rice Irrigation Guide</b><br><br>
-    💧 <b>Critical stages:</b><br>
-    &bull; Transplanting to tillering: 5–7cm standing water<br>
-    &bull; Active tillering (25–50 days): maintain continuously<br>
-    &bull; Flowering/heading: never let field dry out<br>
-    &bull; Grain filling: AWD method (save 30% water)<br><br>
-    ⚡ <b>AWD Technique:</b> Irrigate when water level drops to 15cm below soil. Install a perforated pipe to check water level.`,
-
-  'cotton': `<b>Cotton Pest Management</b><br><br>
-    🐛 <b>Common pests & controls:</b><br>
-    &bull; <b>Whitefly/Jassids:</b> Imidacloprid 17.8% SL — 0.5ml/L<br>
-    &bull; <b>Bollworm:</b> Chlorpyrifos 20% EC — 2ml/L<br>
-    &bull; <b>Thrips:</b> Spinosad 45% SC — 0.5ml/L<br><br>
-    🌿 <b>Preventive (IPM):</b><br>
-    &bull; 5 pheromone traps per acre<br>
-    &bull; Neem oil 3ml/L as preventive spray<br>
-    &bull; Yellow sticky traps for monitoring`,
-
-  'soil': `<b>Soil Health Improvement Plan</b><br><br>
-    📊 <b>Optimal soil pH:</b> 6.0–7.5<br><br>
-    🔧 <b>Corrections:</b><br>
-    &bull; Too acidic (pH &lt;6): Apply agricultural lime 2–4 bag/acre<br>
-    &bull; Too alkaline (pH &gt;7.5): Apply gypsum or sulfur<br><br>
-    🌱 <b>Organic matter boost:</b><br>
-    &bull; Green manure (Dhaincha/Sunhemp) — plow at flowering<br>
-    &bull; Farmyard manure 5 tons/acre<br>
-    &bull; Vermicompost 1–2 tons/acre<br><br>
-    Test soil every 2 seasons at your nearest KVK center.`
-};
-
-function getAIReply(msg) {
-  const m = msg.toLowerCase();
-  for (const key in aiReplies) {
-    if (m.includes(key)) return aiReplies[key];
-  }
-  if (m.includes('disease') || m.includes('blight') || m.includes('fungal') || m.includes('spot'))
-    return `<b>General Fungal Disease Protocol</b><br><br>
-    🔬 <b>Diagnosis clues:</b><br>
-    &bull; Yellow spots → Alternaria / Septoria<br>
-    &bull; White powder → Powdery mildew<br>
-    &bull; Water-soaked lesions → Bacterial blight<br><br>
-    💊 <b>Treatment:</b> Mancozeb 75% WP (2.5g/L) or Carbendazim 50% WP (1g/L)<br>
-    🌬️ <b>Prevention:</b> Ensure airflow between plants, avoid overhead irrigation`;
-  if (m.includes('price') || m.includes('sell') || m.includes('market'))
-    return `<b>Market Selling Strategy</b><br><br>
-    📈 Current wheat prices rising — best to hold 2–3 weeks<br>
-    🏪 APMC mandis offer 8–15% more than local traders<br>
-    📱 Use the <b>Market Advisor</b> tab for live mandi prices and profit calculator<br>
-    🤝 <b>Direct selling</b> via our Marketplace can net 20–35% more — zero middlemen!`;
-  return `<b>Farming Advisory</b><br><br>
-    Based on current season (Kharif) conditions:<br><br>
-    &bull; 🌿 Monitor crops weekly for pest/disease signs<br>
-    &bull; 💧 Maintain optimal soil moisture 60–70%<br>
-    &bull; 🧪 Apply foliar micronutrient spray (boron + zinc) for better yield<br>
-    &bull; 📊 Check the <b>Crop Predict</b> tab for yield forecasting<br><br>
-    Feel free to ask about specific crops, diseases, or practices!`;
-}
-
-async function sendMessage() {
-  const inp = document.getElementById('chatInput');
-  const msg = inp.value.trim();
-  if (!msg) return;
-  const box = document.getElementById('chatMessages');
-  box.innerHTML += `<div class="msg msg-user">${escapeHtml(msg)}</div>`;
-  inp.value = '';
-  box.scrollTop = 9999;
-  const pending = document.createElement('div');
-  pending.className = 'msg msg-ai';
-  pending.innerHTML = '<span class="ai-tag">AgriSmart AI</span>Thinking through the crop notes...';
-  box.appendChild(pending);
-  box.scrollTop = 9999;
-  try {
-    const data = await apiRequest('/api/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message: msg })
-    });
-    pending.innerHTML = `<span class="ai-tag">AgriSmart AI</span>${data.reply}`;
-  } catch (error) {
-    pending.innerHTML = `<span class="ai-tag">AgriSmart AI</span>${getAIReply(msg)}`;
-    showToast('Using offline assistant fallback');
-  } finally {
-    box.scrollTop = 9999;
-  }
-}
-
-function quickAsk(q) {
-  document.getElementById('chatInput').value = q;
-  sendMessage();
-  switchPage('ai');
-}
-
-let selectedDiseaseImage = null;
-
-let diseaseDetectionInProgress = false;
-let diseaseDetectionAborted = false;
-
-function validateImageFile(file) {
-  const MAX_SIZE = 10 * 1024 * 1024;
-  const VALID_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-  
-  if (!file) return { valid: false, error: 'No file selected' };
-  if (file.size > MAX_SIZE) return { valid: false, error: 'Image must be under 10MB' };
-  if (!VALID_TYPES.includes(file.type)) return { valid: false, error: 'Only JPG, PNG, and WebP images are supported' };
-  if (!file.name) return { valid: false, error: 'File must have a valid name' };
-  
-  return { valid: true };
-}
-
-function handleDiseaseFile(event) {
-  const file = event.target.files && event.target.files[0];
-  const validation = validateImageFile(file);
-  
-  if (!validation.valid) {
-    showToast(validation.error);
-    return;
-  }
-  
-  // Reset state for new upload
-  diseaseDetectionAborted = false;
-  selectedDiseaseImage = null;
-  
-  const reader = new FileReader();
-  const loadTimeout = setTimeout(() => {
-    showToast('Image loading timed out');
-    reader.abort();
-  }, 15000);
-  
-  reader.onerror = () => {
-    clearTimeout(loadTimeout);
-    showToast('Failed to read image file. Please try again.');
-  };
-  
-  reader.onabort = () => {
-    clearTimeout(loadTimeout);
-    showToast('Image loading cancelled');
-  };
-  
-  reader.onload = () => {
-    clearTimeout(loadTimeout);
-    if (!reader.result || reader.result.length === 0) {
-      showToast('Image data is empty');
-      return;
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2600);
     }
-    
-    selectedDiseaseImage = { filename: file.name, dataUrl: reader.result };
-    const preview = document.getElementById('diseasePreview');
-    preview.src = reader.result;
-    preview.style.display = 'block';
-    
-    runDetection();
-  };
-  
-  try {
-    reader.readAsDataURL(file);
-  } catch (err) {
-    showToast('Error processing image');
-  }
-}
 
-function validateDetectionResult(result) {
-  if (!result || typeof result !== 'object') return false;
-  if (typeof result.disease !== 'string' || !result.disease.trim()) return false;
-  if (typeof result.confidence !== 'number' || result.confidence < 0 || result.confidence > 100) return false;
-  if (typeof result.severity !== 'string') return false;
-  return true;
-}
-
-function applyDetectionResult(result) {
-  if (!validateDetectionResult(result)) {
-    showToast('Invalid detection result received');
-    return;
-  }
-  
-  const diseaseElem = document.getElementById('detectDisease');
-  if (diseaseElem) diseaseElem.textContent = result.disease;
-  
-  const confElem = document.getElementById('detectConfidence');
-  if (confElem) confElem.textContent = `${result.confidence}% confidence`;
-  
-  const cropElem = document.getElementById('detectCrop');
-  if (cropElem) cropElem.textContent = result.crop || 'Crop sample';
-  
-  const sevElem = document.getElementById('detectSeverity');
-  if (sevElem) sevElem.textContent = result.severity;
-  
-  const affElem = document.getElementById('detectAffected');
-  if (affElem) affElem.textContent = result.affectedArea || '~30% of leaves';
-  
-  const trtElem = document.getElementById('detectTreatment');
-  if (trtElem) trtElem.textContent = result.treatment || 'Consult local expert';
-  
-  const freqElem = document.getElementById('detectFrequency');
-  if (freqElem) freqElem.textContent = result.frequency || 'Every 10-14 days';
-  
-  const recElem = document.getElementById('detectRecovery');
-  if (recElem) recElem.textContent = result.recovery || '7-10 days';
-  
-  const btnElem = document.getElementById('detectAskBtn');
-  if (btnElem) btnElem.setAttribute('onclick', `quickAsk('Detailed treatment plan for ${result.disease}?')`);
-}
-
-async function runDetection() {
-  if (diseaseDetectionInProgress) {
-    showToast('Detection already in progress');
-    return;
-  }
-  
-  if (!selectedDiseaseImage) {
-    showToast('Choose a crop image first');
-    return;
-  }
-  
-  diseaseDetectionInProgress = true;
-  diseaseDetectionAborted = false;
-  const box = document.getElementById('uploadBox');
-  const resultBox = document.getElementById('diseaseResult');
-  
-  if (box) box.style.borderColor = 'var(--green)';
-  if (resultBox) resultBox.style.display = 'none';
-  
-  showToast('🔍 Analyzing crop image...');
-  
-  const detectionTimeout = setTimeout(() => {
-    diseaseDetectionAborted = true;
-    diseaseDetectionInProgress = false;
-    showToast('Detection timeout. Please try again.');
-  }, 30000);
-  
-  try {
-    const result = await apiRequest('/api/detect', {
-      method: 'POST',
-      body: JSON.stringify(selectedDiseaseImage)
-    });
-    
-    clearTimeout(detectionTimeout);
-    
-    if (diseaseDetectionAborted) return;
-    
-    if (!validateDetectionResult(result)) {
-      throw new Error('Invalid response from detection service');
+    function switchPage(page) {
+      document.querySelectorAll('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
+      document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === page));
+      if (page === 'marketplace') renderListings();
     }
-    
-    applyDetectionResult(result);
-    if (resultBox) resultBox.style.display = 'block';
-    showToast(`✓ ${result.disease} detected (${result.confidence}% confidence)`);
-    
-  } catch (error) {
-    clearTimeout(detectionTimeout);
-    
-    if (diseaseDetectionAborted) {
-      diseaseDetectionInProgress = false;
-      return;
+
+    function renderSellTiming(alert) {
+      if (!alert) return;
+      const banner = document.getElementById('sellTimingBanner');
+      banner.classList.toggle('drop', alert.status === 'drop');
+      document.getElementById('sellTimingTitle').textContent =
+        alert.status === 'drop' ? `Consider selling today: ${alert.product}` :
+          alert.status === 'rise' ? `Prices rising: ${alert.product}` : `Price outlook: ${alert.product}`;
+      document.getElementById('sellTimingMessage').textContent = alert.message;
+      document.getElementById('sellTimingProduct').value = alert.product;
+      document.getElementById('forecastStrip').innerHTML = alert.forecast.map(day => `
+        <div class="forecast-day"><b>${escapeHtml(day.day)}</b><span>₹${Number(day.price).toLocaleString('en-IN')}/Q</span></div>
+      `).join('');
     }
-    
-    console.error('Detection error:', error);
-    showToast(`⚠️ Analysis failed: ${error?.message || 'Unknown error'}. Using default diagnostic.`);
-    
-    // Fallback to safe default
-    applyDetectionResult({
-      disease: 'Disease detected',
-      confidence: 75,
-      severity: 'Medium',
-      crop: 'Crop sample',
-      affectedArea: 'Unable to assess',
-      treatment: 'Consult local agricultural expert for precise diagnosis',
-      frequency: 'Every 10-14 days',
-      recovery: '7-14 days'
-    });
-    if (resultBox) resultBox.style.display = 'block';
-  } finally {
-    diseaseDetectionInProgress = false;
-    if (box) box.style.borderColor = '';
-  }
-}
 
-/* ══════════════════════
-   CROP PREDICT
-══════════════════════ */
-const crops = [
-  { name:'Wheat', emoji:'🌾', rain:[400,800], temp:[14,28], profit:'High', water:'Medium', time:'110 days', price:2180 },
-  { name:'Rice', emoji:'🌿', rain:[850,1200], temp:[22,36], profit:'High', water:'High', time:'130 days', price:2050 },
-  { name:'Tomato', emoji:'🍅', rain:[500,800], temp:[20,32], profit:'Very High', water:'Medium', time:'90 days', price:1850 },
-  { name:'Cotton', emoji:'🌸', rain:[600,900], temp:[25,38], profit:'High', water:'Medium', time:'180 days', price:6400 },
-  { name:'Mustard', emoji:'🌼', rain:[250,600], temp:[10,22], profit:'Medium', water:'Low', time:'100 days', price:5200 },
-  { name:'Sugarcane', emoji:'🎋', rain:[700,1000], temp:[24,38], profit:'High', water:'High', time:'365 days', price:3400 },
-  { name:'Maize', emoji:'🌽', rain:[500,900], temp:[20,34], profit:'Medium', water:'Medium', time:'100 days', price:1950 },
-];
-
-let predictChartInited = false;
-let priceTrendChartObj = null;
-let predictRequestId = 0;
-
-function localPrediction(payload) {
-  const bestCrop = crops.find(c => payload.rainfall >= c.rain[0] && payload.rainfall <= c.rain[1] && payload.temperature >= c.temp[0] && payload.temperature <= c.temp[1]) || crops[0];
-  const base = 1.2 + (payload.rainfall / 1200) * 1.8 + (payload.nitrogen / 200) * 1.4;
-  const tempBonus = (payload.temperature >= 18 && payload.temperature <= 32) ? 0.5 : -0.4;
-  const yieldPerAcre = Math.max(0.4, (base + tempBonus) * payload.irrigationFactor);
-  const totalYield = Math.round(yieldPerAcre * payload.area * 10);
-  return {
-    ...payload,
-    yieldPerAcre: Number(yieldPerAcre.toFixed(1)),
-    totalYield,
-    revenue: totalYield * bestCrop.price,
-    crop: bestCrop,
-    trend: [0.93, 0.96, 1, 1.04, 1.09, 1.13].map(v => Math.round(bestCrop.price * v))
-  };
-}
-
-async function updatePredictions() {
-  const rf = +document.getElementById('slRainfall').value;
-  const tmp = +document.getElementById('slTemp').value;
-  const n = +document.getElementById('slNitrogen').value;
-  const area = +document.getElementById('slArea').value;
-  const irrFactor = +document.getElementById('slIrr').value;
-  const requestId = ++predictRequestId;
-  const payload = { rainfall: rf, temperature: tmp, nitrogen: n, area, irrigationFactor: irrFactor };
-
-  document.getElementById('rfShow').textContent = rf + ' mm';
-  document.getElementById('tmpShow').textContent = tmp + '°C';
-  document.getElementById('nShow').textContent = n + ' kg/ha';
-  document.getElementById('areaShow').textContent = area + ' acres';
-
-  const base = 1.2 + (rf / 1200) * 1.8 + (n / 200) * 1.4;
-  const tempBonus = (tmp >= 18 && tmp <= 32) ? 0.5 : -0.4;
-  const yieldVal = (base + tempBonus) * irrFactor;
-  const yieldDisplay = yieldVal.toFixed(1);
-  const bestCrop = crops.find(c => rf >= c.rain[0] && rf <= c.rain[1] && tmp >= c.temp[0] && tmp <= c.temp[1]) || crops[0];
-  const totalYield = (yieldVal * area * 10).toFixed(0); // quintals
-  const revenue = (totalYield * bestCrop.price).toLocaleString('en-IN');
-
-  document.getElementById('yieldNum').textContent = yieldDisplay + ' T/ac';
-  document.getElementById('priceNum').textContent = '₹' + bestCrop.price.toLocaleString('en-IN');
-  document.getElementById('revenueNum').textContent = '₹' + revenue;
-
-  document.getElementById('recEmoji').textContent = bestCrop.emoji;
-  document.getElementById('recName').textContent = bestCrop.name;
-  document.getElementById('recReason').textContent = `Ideal for ${rf}mm rainfall & ${tmp}°C temp`;
-  document.getElementById('recProfit').textContent = bestCrop.profit;
-  document.getElementById('recWater').textContent = bestCrop.water;
-  document.getElementById('recTime').textContent = bestCrop.time;
-
-  // Update chart
-  if (priceTrendChartObj) {
-    const base2 = bestCrop.price;
-    const trend = [base2 * 0.93, base2 * 0.96, base2, base2 * 1.04, base2 * 1.09, base2 * 1.13];
-    priceTrendChartObj.data.datasets[0].data = trend.map(v => Math.round(v));
-    priceTrendChartObj.data.datasets[0].label = bestCrop.name + ' price (₹/Q)';
-    priceTrendChartObj.update();
-  }
-  try {
-    const prediction = await apiRequest('/api/predict', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    if (requestId !== predictRequestId) return;
-    const apiCrop = prediction.crop;
-    document.getElementById('yieldNum').textContent = prediction.yieldPerAcre.toFixed(1) + ' T/ac';
-    document.getElementById('priceNum').textContent = '₹' + apiCrop.price.toLocaleString('en-IN');
-    document.getElementById('revenueNum').textContent = '₹' + prediction.revenue.toLocaleString('en-IN');
-    document.getElementById('recEmoji').textContent = apiCrop.emoji;
-    document.getElementById('recName').textContent = apiCrop.name;
-    document.getElementById('recReason').textContent = `Ideal for ${rf}mm rainfall & ${tmp}°C temp`;
-    document.getElementById('recProfit').textContent = apiCrop.profit;
-    document.getElementById('recWater').textContent = apiCrop.water;
-    document.getElementById('recTime').textContent = apiCrop.time;
-    if (priceTrendChartObj) {
-      priceTrendChartObj.data.datasets[0].data = prediction.trend;
-      priceTrendChartObj.data.datasets[0].label = apiCrop.name + ' price (₹/Q)';
-      priceTrendChartObj.update();
-    }
-  } catch (error) {
-    if (requestId === predictRequestId) console.warn('Prediction API unavailable, using local model.');
-  }
-}
-
-function initPredictCharts() {
-  updatePredictions();
-  if (predictChartInited) return;
-  predictChartInited = true;
-  const ctx = document.getElementById('priceTrendChart');
-  priceTrendChartObj = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: ['Oct','Nov','Dec','Jan','Feb','Mar'],
-      datasets: [{
-        label: 'Wheat price (₹/Q)',
-        data: [2020, 2080, 2180, 2260, 2340, 2400],
-        borderColor: '#1D9E75',
-        backgroundColor: 'rgba(29,158,117,0.08)',
-        borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#1D9E75',
-        fill: true, tension: 0.4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: { ticks: { font: { size: 12 }, callback: v => '₹' + v } }
+    async function updateSellTiming(product) {
+      try {
+        renderSellTiming(await apiRequest(`/api/price-trend?product=${encodeURIComponent(product)}`));
+      } catch (error) {
+        const alert = priceAlerts.find(item => item.product.toLowerCase() === product.toLowerCase());
+        if (alert) renderSellTiming(alert);
+        else showToast('Could not load the price outlook.');
       }
     }
-  });
-}
 
-/* ══════════════════════
-   MARKET ADVISOR
-══════════════════════ */
-const mandiData = [
-  { crop:'Wheat', mandi:'Banglore APMC', min:2120, max:2240, trend:1 },
-  { crop:'Wheat', mandi:'udupi APMC', min:2080, max:2180, trend:1 },
-  { crop:'Tomato', mandi:'APMC Hassan', min:1780, max:1950, trend:-1 },
-  { crop:'Rice', mandi:'manglore APMC', min:1980, max:2100, trend:1 },
-  { crop:'Cotton', mandi:'Tumkuru APMC', min:6200, max:6600, trend:1 },
-  { crop:'Mustard', mandi:'Shivamogga APMC', min:5000, max:5400, trend:-1 },
-  { crop:'Onion', mandi:'Mysore APMC', min:1200, max:1500, trend:1 },
-];
-
-let marketChartInited = false;
-let marketPriceAlerts = [];
-
-function renderSellTiming(alert) {
-  const banner = document.getElementById('sellTimingBanner');
-  const title = document.getElementById('sellTimingTitle');
-  const message = document.getElementById('sellTimingMessage');
-  const strip = document.getElementById('forecastStrip');
-  if (!banner || !alert) return;
-
-  banner.classList.toggle('drop', alert.status === 'drop');
-  banner.classList.toggle('rise', alert.status === 'rise');
-  banner.classList.toggle('stable', alert.status === 'stable');
-  title.textContent = alert.status === 'drop'
-    ? `Sell Today: ${alert.product}`
-    : alert.status === 'stable'
-      ? `Stable: ${alert.product}`
-      : `Hold: ${alert.product}`;
-  message.textContent = alert.message;
-  strip.innerHTML = alert.forecast.map(day => `
-    <div class="forecast-day">
-      <b>${escapeHtml(day.day)}</b>
-      <span>₹${Number(day.price).toLocaleString('en-IN')}/Q</span>
-    </div>`).join('');
-}
-
-async function updateSellTiming(product) {
-  try {
-    const alert = await apiRequest(`/api/price-trend?product=${encodeURIComponent(product)}`);
-    renderSellTiming(alert);
-    const selector = document.getElementById('sellTimingProduct');
-    if (selector) selector.value = alert.product;
-    showToast(alert.recommendation === 'Sell Today' ? `Sell Today alert: ${alert.product}` : `Hold: ${alert.product} prices rising`);
-  } catch (error) {
-    const fallback = marketPriceAlerts.find(a => a.product === product) || marketPriceAlerts[0];
-    renderSellTiming(fallback);
-  }
-}
-
-async function initMarketCharts() {
-  let rows = mandiData;
-  let compare = { labels: ['Banglore', 'Udupi', 'Hassan', 'Manglore', 'Shivamogga', 'Mysore'], data: [2240, 2180, 2210, 2090, 2130, 2160] };
-  try {
-    const market = await apiRequest('/api/market');
-    rows = market.rows;
-    compare = market.compare;
-    marketPriceAlerts = market.priceAlerts || [];
-  } catch (error) {
-    console.warn('Market API unavailable, using demo data.');
-  }
-  const selector = document.getElementById('sellTimingProduct');
-  const selectedProduct = selector?.value || 'Tomato';
-  const defaultAlert = marketPriceAlerts.find(a => a.product.toLowerCase() === selectedProduct.toLowerCase())
-    || marketPriceAlerts.find(a => a.status === 'drop')
-    || marketPriceAlerts[0];
-  renderSellTiming(defaultAlert);
-  const tbody = document.getElementById('mandiBody');
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td><b>${r.crop}</b></td>
-      <td style="color:var(--text2);">${r.mandi}</td>
-      <td>₹${r.min}</td>
-      <td>₹${r.max}</td>
-      <td>${r.trend > 0 ? '<span class="trend-up">▲ Rising</span>' : '<span class="trend-down">▼ Falling</span>'}</td>
-      <td><button class="btn btn-sm btn-outline-green" onclick="updateSellTiming('${r.crop}')">Analyse</button></td>
-    </tr>`).join('');
-
-  if (marketChartInited) return;
-  marketChartInited = true;
-
-  new Chart(document.getElementById('mandiCompareChart'), {
-    type: 'bar',
-    data: {
-      labels: compare.labels,
-      datasets: [{
-        label: 'Wheat ₹/Q',
-        data: compare.data,
-        backgroundColor: ['#1D9E75','#5DCAA5','#9FE1CB','#5DCAA5','#9FE1CB','#5DCAA5'],
-        borderRadius: 6
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: { ticks: { font: { size: 12 }, callback: v => '₹' + v }, min: 2000 }
+    async function initMarket() {
+      try {
+        const market = await apiRequest('/api/market');
+        mandiRows = market.rows;
+        priceAlerts = market.priceAlerts || [];
+        document.getElementById('mandiBody').innerHTML = mandiRows.map(row => `
+          <tr>
+            <td><b>${escapeHtml(row.crop)}</b></td><td>${escapeHtml(row.mandi)}</td>
+            <td>₹${Number(row.min).toLocaleString('en-IN')}</td><td>₹${Number(row.max).toLocaleString('en-IN')}</td>
+            <td class="${row.trend > 0 ? 'trend-up' : 'trend-down'}">${row.trend > 0 ? '▲ Rising' : '▼ Falling'}</td>
+            <td><button class="btn btn-small" onclick="updateSellTiming('${escapeHtml(row.crop)}')">Outlook</button></td>
+          </tr>`).join('');
+        const initial = priceAlerts.find(alert => alert.product === 'Tomato') || priceAlerts[0];
+        renderSellTiming(initial);
+        if (window.Chart && market.compare) {
+          compareChart = new Chart(document.getElementById('mandiCompareChart'), {
+            type: 'bar',
+            data: {
+              labels: market.compare.labels,
+              datasets: [{ label: 'Sample mandi prices (₹/Q)', data: market.compare.data, backgroundColor: '#1d9e75', borderRadius: 6 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, ticks: { callback: value => `₹${value}` } } } }
+          });
+        }
+      } catch (error) {
+        document.getElementById('mandiBody').innerHTML = '<tr><td colspan="6">Could not load mandi prices. Please retry after starting the server.</td></tr>';
+        document.getElementById('sellTimingMessage').textContent = 'Price outlook is unavailable until the server is running.';
       }
     }
-  });
-}
 
-/* ══════════════════════
-   MARKETPLACE
-══════════════════════ */
-const demoListings = [
-  { name:'Organic Tomatoes', farmer:'Raju Patel · Nashik, MH', qty:'200 kg', price:'₹28/kg', grade:'Organic', emoji:'🍅', bg:'#FAECE7' },
-  { name:'Basmati Rice', farmer:'Harpreet Singh · Amritsar, PB', qty:'50 quintal', price:'₹55/kg', grade:'A-grade', emoji:'🌾', bg:'#EAF3DE' },
-  { name:'Fresh Onions', farmer:'Suresh Mali · Indore, MP', qty:'100 kg', price:'₹18/kg', grade:'B-grade', emoji:'🧅', bg:'#FAEEDA' },
-  { name:'Green Chillies', farmer:'Meera Devi · Guntur, AP', qty:'30 kg', price:'₹45/kg', grade:'A-grade', emoji:'🌶️', bg:'#FCEBEB' },
-  { name:'Alphonso Mangoes', farmer:'Dinesh Sawant · Ratnagiri, MH', qty:'150 kg', price:'₹120/kg', grade:'Premium', emoji:'🥭', bg:'#FFF8E1' },
-  { name:'Baby Potatoes', farmer:'Rajesh Kumar · Agra, UP', qty:'80 kg', price:'₹22/kg', grade:'A-grade', emoji:'🥔', bg:'#F3E5F5' },
-];
+    function switchMpTab(tab) {
+      for (const name of ['browse', 'sell', 'orders']) {
+        document.getElementById(`mp${name[0].toUpperCase()}${name.slice(1)}Tab`).style.display = tab === name ? 'block' : 'none';
+        document.getElementById(`mp${name[0].toUpperCase()}${name.slice(1)}`).classList.toggle('active', tab === name);
+      }
+      if (tab === 'browse') renderListings();
+      if (tab === 'orders') renderOrders();
+      if (tab === 'sell') renderMyListings();
+    }
 
-let myListings = [];
-let marketplaceOrders = [];
+    async function renderListings() {
+      try {
+        const data = await apiRequest('/api/listings');
+        allListings = data.listings;
+        myListings = data.myListings;
+      } catch (error) {
+        console.warn('Marketplace API unavailable; displaying sample listings.', error);
+      }
+      document.getElementById('listingGrid').innerHTML = allListings.map(listing => `
+        <article class="listing-card">
+          <div class="listing-image" style="background:${escapeHtml(listing.bg || '#E1F5EE')}">${escapeHtml(listing.emoji)}</div>
+          <div class="listing-body">
+            <div class="listing-name">${escapeHtml(listing.name)}</div>
+            <div class="listing-farmer">${escapeHtml(listing.farmer)}</div>
+            <div class="listing-meta">${escapeHtml(listing.grade)} · ${escapeHtml(listing.qty)} available</div>
+            <div class="listing-footer"><span class="listing-price">${escapeHtml(listing.price)}</span>
+              <button class="btn btn-primary btn-small" onclick="orderNow('${encodeURIComponent(listing.name)}','${encodeURIComponent(listing.price)}')">Order</button>
+            </div>
+          </div>
+        </article>`).join('');
+    }
 
-async function renderListings() {
-  const grid = document.getElementById('listingGrid');
-  let all = [...demoListings, ...myListings];
-  try {
-    const data = await apiRequest('/api/listings');
-    all = data.listings;
-    myListings = data.myListings;
-    renderMyListings();
-  } catch (error) {
-    console.warn('Listings API unavailable, using browser data.');
-  }
-  grid.innerHTML = all.map(l => `
-    <div class="listing-card">
-      <div class="listing-img" style="background:${l.bg || '#E1F5EE'};">${l.emoji}</div>
-      <div class="listing-body">
-        <div class="listing-name">${escapeHtml(l.name)}</div>
-        <div class="listing-farmer">${escapeHtml(l.farmer)}</div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-          <span class="badge ${l.grade === 'Organic' ? 'badge-green' : l.grade === 'Premium' ? 'badge-purple' : 'badge-blue'}">${escapeHtml(l.grade)}</span>
-          <span style="font-size:12px; color:var(--text3);">${escapeHtml(l.qty)} available</span>
-        </div>
-        <div class="listing-footer">
-          <span class="listing-price">${escapeHtml(l.price)}</span>
-          <button class="btn btn-primary btn-sm" onclick="orderNow('${encodeURIComponent(l.name)}', '${encodeURIComponent(l.price)}')">Order now</button>
-        </div>
-      </div>
-    </div>`).join('');
-}
+    function renderMyListings() {
+      const box = document.getElementById('myListingsBox');
+      box.innerHTML = myListings.length ? myListings.map(listing => `
+        <div class="my-listing-row"><b>${escapeHtml(listing.name)} · ${escapeHtml(listing.qty)}</b><span>${escapeHtml(listing.price)}</span></div>
+      `).join('') : '<div class="empty">You have not published any listings yet.</div>';
+    }
 
-function renderMyListings() {
-  const box = document.getElementById('myListingsBox');
-  if (!myListings.length) {
-    box.innerHTML = '<div style="text-align:center; color:var(--text3); font-size:13px; padding:24px 0;">No listings yet. Add your first crop above!</div>';
-    return;
-  }
-  box.innerHTML = myListings.map(l => `
-    <div class="my-listing-row">
-      <span>${l.emoji} <b>${escapeHtml(l.name)}</b> â€” ${escapeHtml(l.qty)}</span>
-      <span style="color:var(--green-dark); font-weight:700;">${escapeHtml(l.price)}</span>
-      <span class="badge badge-green">Live</span>
-    </div>`).join('');
-}
+    async function renderOrders() {
+      try {
+        const data = await apiRequest('/api/orders');
+        orders = data.orders;
+      } catch (error) {
+        console.warn('Orders API unavailable.', error);
+      }
+      document.getElementById('ordersBox').innerHTML = orders.length ? orders.map(order => `
+        <div class="order-row"><b>${escapeHtml(order.name)}</b><span>${escapeHtml(order.quantity)} · ${escapeHtml(order.price)}</span><span>${escapeHtml(order.status)}</span></div>
+      `).join('') : '<div class="empty">No orders yet.</div>';
+    }
 
-async function renderOrders() {
-  const box = document.getElementById('ordersBox');
-  try {
-    const data = await apiRequest('/api/orders');
-    marketplaceOrders = data.orders;
-  } catch (error) {
-    console.warn('Orders API unavailable, using browser data.');
-  }
-  if (!marketplaceOrders.length) {
-    box.innerHTML = '<div style="text-align:center; color:var(--text3); font-size:13px; padding:24px 0;">No orders yet. Place an order from Browse Listings.</div>';
-    return;
-  }
-  box.innerHTML = marketplaceOrders.map(o => `
-    <div class="order-row">
-      <div><b>${escapeHtml(o.name)}</b><div style="color:var(--text3); font-size:12px;">${escapeHtml(o.buyer)} · ${escapeHtml(o.phone)}</div></div>
-      <div>${escapeHtml(o.quantity)}</div>
-      <div style="color:var(--green-dark); font-weight:700;">${escapeHtml(o.price)}</div>
-      <span class="badge badge-green">${escapeHtml(o.status)}</span>
-    </div>`).join('');
-}
-
-async function orderNow(name, price) {
-  const decodedName = decodeURIComponent(name);
-  const decodedPrice = decodeURIComponent(price);
-  const quantity = window.prompt(`Quantity for ${decodedName}`, '5 kg') || '5 kg';
-  try {
-    const data = await apiRequest('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify({ name: decodedName, price: decodedPrice, quantity, buyer: 'Raju Patel', phone: '+91 98765 43210' })
-    });
-    marketplaceOrders = data.orders;
-    renderOrders();
-  } catch (error) {
-    marketplaceOrders.unshift({ name: decodedName, price: decodedPrice, quantity, buyer: 'Raju Patel', phone: '+91 98765 43210', status: 'Placed' });
-    console.warn('Order API unavailable, using demo confirmation.');
-  }
-  showToast(`Order placed for ${decodedName} (${quantity}) at ${decodedPrice}!`);
-}
-
-async function addListing() {
-  const crop = document.getElementById('fCrop').value.trim();
-  const qty = document.getElementById('fQty').value.trim();
-  const price = document.getElementById('fPrice').value.trim();
-  const loc = document.getElementById('fLoc').value.trim();
-  const grade = document.getElementById('fGrade').value;
-  const apiListingPayload = { name: crop, qty, price, location: loc, grade };
-  if (!crop || !qty || !price) { showToast('⚠️ Please fill crop name, quantity, and price'); return; }
-  try {
-    const data = await apiRequest('/api/listings', {
-      method: 'POST',
-      body: JSON.stringify(apiListingPayload)
-    });
-    myListings = data.myListings;
-    renderMyListings();
-    renderListings();
-    ['fCrop','fQty','fPrice','fLoc'].forEach(id => document.getElementById(id).value = '');
-    showToast(`"${crop}" listed successfully! Buyers can now find your listing.`);
-    return;
-  } catch (error) {
-    console.warn('Listing API unavailable, storing listing in browser memory.');
-  }
-  const emojis = {tomato:'🍅', wheat:'🌾', onion:'🧅', rice:'🌿', cotton:'🌸', potato:'🥔', chilli:'🌶️', mango:'🥭', corn:'🌽'};
-  const emoji = emojis[crop.toLowerCase()] || '🌱';
-  const listing = { name: crop, farmer: `You · ${loc || 'Your farm'}`, qty: qty, price: '₹' + price + '/kg', grade: grade.split(' ')[0], emoji, bg: '#E1F5EE', isOwn: true };
-  myListings.push(listing);
-  renderMyListings();
-  ['fCrop','fQty','fPrice','fLoc'].forEach(id => document.getElementById(id).value = '');
-  showToast(`🚀 "${crop}" listed successfully! Buyers can now find your listing.`);
-}
-
-function switchMpTab(tab) {
-  document.getElementById('mpBrowseTab').style.display = tab === 'browse' ? 'block' : 'none';
-  document.getElementById('mpSellTab').style.display = tab === 'sell' ? 'block' : 'none';
-  document.getElementById('mpOrdersTab').style.display = tab === 'orders' ? 'block' : 'none';
-  document.getElementById('mpBrowse').classList.toggle('active', tab === 'browse');
-  document.getElementById('mpSell').classList.toggle('active', tab === 'sell');
-  document.getElementById('mpOrders').classList.toggle('active', tab === 'orders');
-  if (tab === 'browse') renderListings();
-  if (tab === 'orders') renderOrders();
-}
-
-setInterval(() => {
-  if (document.getElementById('page-market').classList.contains('active')) {
-    initMarketCharts();
-  }
-  if (document.getElementById('page-marketplace').classList.contains('active')) {
-    renderListings();
-  }
-  const statusBar = document.querySelector('.status-bar');
-  if (statusBar) {
-    const spans = statusBar.querySelectorAll('span');
-    if (spans && spans[1]) {
-      const match = spans[1].textContent.match(/\d+/);
-      if (match) {
-        const current = parseInt(match[0]);
-        const nudge = (Math.random() - 0.5) * 2;
-        spans[1].textContent = `Soil moisture: ${Math.round(current + nudge)}% (optimal)`;
+    async function orderNow(encodedName, encodedPrice) {
+      const name = decodeURIComponent(encodedName);
+      const price = decodeURIComponent(encodedPrice);
+      const quantity = window.prompt(`Quantity for ${name}`, '5 kg');
+      if (!quantity || !quantity.trim()) return;
+      try {
+        await apiRequest('/api/orders', {
+          method: 'POST',
+          body: JSON.stringify({ name, price, quantity: quantity.trim(), buyer: 'Marketplace buyer', phone: '' })
+        });
+        showToast(`Order placed for ${name}.`);
+        await renderOrders();
+      } catch (error) {
+        showToast(error.message || 'Could not place the order.');
       }
     }
-  }
-}, 10000);
-</script>
 
+    async function addListing() {
+      const name = document.getElementById('fCrop').value.trim();
+      const qty = document.getElementById('fQty').value.trim();
+      const price = document.getElementById('fPrice').value.trim();
+      const location = document.getElementById('fLoc').value.trim();
+      const grade = document.getElementById('fGrade').value;
+      if (!name || !qty || !price || Number(price) <= 0) {
+        showToast('Enter a crop, quantity, and valid price.');
+        return;
+      }
+      try {
+        await apiRequest('/api/listings', {
+          method: 'POST',
+          body: JSON.stringify({ name, qty, price, location, grade })
+        });
+        ['fCrop', 'fQty', 'fPrice', 'fLoc'].forEach(id => { document.getElementById(id).value = ''; });
+        await renderListings();
+        renderMyListings();
+        showToast('Your listing has been published.');
+      } catch (error) {
+        showToast(error.message || 'Could not publish the listing.');
+      }
+    }
+
+    initMarket();
+  </script>
 </body>
 </html>
